@@ -333,7 +333,7 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	, const HWND& hDlg
 )
 {
-	// create thread to continuously transmit and receive
+	// create thread to run func playAudioStream()
 	CreateThread(NULL
 		, 0
 		, playAudioStream
@@ -344,8 +344,9 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	// Microsoft example
 	//playAudioStream();
 	// Timor Doumler example
-	// does not work
+	// A) does NOT work
 	//playMelody();
+	// B) does work
 	//playSineWave();
 
 	return EXIT_SUCCESS;
