@@ -14,14 +14,20 @@
 #include <memory.h>
 #include <tchar.h>
 
+// windows multimedia device
+#include <mmreg.h>
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+
+// wasapi
 #include <initguid.h>
-#include <Audioclient.h>
-#include <Mmdeviceapi.h>
-#include <Functiondiscoverykeys_devpkey.h>
+#include <audiopolicy.h>
+#include <audioclient.h>
+
 #ifdef _WIN32
 #define _USE_MATH_DEFINES
 #endif
 #include <cmath>
-#include <mmreg.h>
 #include <array>
+#include <random>
 
