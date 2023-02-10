@@ -146,21 +146,34 @@ public:
 				}
 			}
 			if (*(UINT16*)lpVoid == CHORD)
-			{
-				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+			{				
+				if (change_rate_chord < 128)
 				{
-					//float next_sample = std::sin(phase_60) + std::sin(phase_57) + std::sin(phase_53);
-					//phase_60 = std::fmod(phase_60 + delta_60, 2.f * static_cast<float>(M_PI));
-					//phase_57 = std::fmod(phase_57 + delta_57, 2.f * static_cast<float>(M_PI));
-					//phase_53 = std::fmod(phase_53 + delta_53, 2.f * static_cast<float>(M_PI));
+					for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+					{
+						float next_sample = std::sin(phase_60) + std::sin(phase_57) + std::sin(phase_53);
+						phase_60 = std::fmod(phase_60 + delta_60, 2.f * static_cast<float>(M_PI));
+						phase_57 = std::fmod(phase_57 + delta_57, 2.f * static_cast<float>(M_PI));
+						phase_53 = std::fmod(phase_53 + delta_53, 2.f * static_cast<float>(M_PI));
 
-					float next_sample = std::sin(phase_62) + std::sin(phase_59) + std::sin(phase_55);
-					phase_62 = std::fmod(phase_62 + delta_62, 2.f * static_cast<float>(M_PI));
-					phase_59 = std::fmod(phase_59 + delta_59, 2.f * static_cast<float>(M_PI));
-					phase_55 = std::fmod(phase_55 + delta_55, 2.f * static_cast<float>(M_PI));
-
-					fData[i] = next_sample;
+						fData[i] = next_sample;
+					}
 				}
+				else
+				{
+					for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+					{
+						float next_sample = std::sin(phase_62) + std::sin(phase_59) + std::sin(phase_55);
+						phase_62 = std::fmod(phase_62 + delta_62, 2.f * static_cast<float>(M_PI));
+						phase_59 = std::fmod(phase_59 + delta_59, 2.f * static_cast<float>(M_PI));
+						phase_55 = std::fmod(phase_55 + delta_55, 2.f * static_cast<float>(M_PI));
+
+						fData[i] = next_sample;
+					}
+				}
+
+				++change_rate_chord;
+				if (change_rate_chord == 256) change_rate_chord = 0;
 			}
 			if (*(UINT16*)lpVoid == METRONOME)
 			{
@@ -222,6 +235,7 @@ private:
 	float delta_55 = delta_55 * (frequency_hz_55 / frequency_hz_62);
 	float phase_55 = 0.f;
 
+	int change_rate_chord = 0;
 };
 
 //*****************************************************************************
