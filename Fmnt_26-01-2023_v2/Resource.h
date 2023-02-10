@@ -3,14 +3,16 @@
 #define NOTE					1
 #define SWEEP					2
 #define CHORD					3
-#define MELODY					4
+#define METRONOME				5
+#define MELODY					6
 
 #define IDC_NOISE				30100
 #define IDC_NOTE				30101
 #define IDC_SWEEP				30102
 #define IDC_CHORD				30103
-#define IDC_MELODY				30104
-#define IDC_START				30105
+#define IDC_METRONOME			30104
+#define IDC_MELODY				30105
+#define IDC_START				30106
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Fmnt_26-01-2023_v2.rc

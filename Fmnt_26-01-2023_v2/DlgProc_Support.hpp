@@ -162,6 +162,10 @@ public:
 					fData[i] = next_sample;
 				}
 			}
+			if (*(UINT16*)lpVoid == METRONOME)
+			{
+				OutputDebugString(L"METRONOME\n");
+			}
 			if (*(UINT16*)lpVoid == MELODY)
 			{
 				OutputDebugString(L"MELODY\n");
@@ -478,6 +482,13 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (LPARAM)0) == BST_CHECKED)
 			{
 				start_play(CHORD);
+			}
+			if (SendMessage(GetDlgItem(hDlg, IDC_METRONOME)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				start_play(METRONOME);
 			}
 			if (SendMessage(GetDlgItem(hDlg, IDC_MELODY)
 				, BM_GETSTATE
