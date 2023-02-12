@@ -176,13 +176,18 @@ public:
 				if (change_rate_chord == 256) change_rate_chord = 0;
 			}
 			if (*(UINT16*)lpVoid == METRONOME)
-			{
+			{				
 				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
 				{
 					float next_sample = std::sin(metronome_phase);
 					metronome_phase = std::fmod(metronome_phase + metronome_delta, 2.f * static_cast<float>(M_PI));
-					fData[i] = 0.f;// next_sample;
-			}
+					if (i < 2182 && cSampleRate < 2182)
+						fData[i] = next_sample;
+					else
+						fData[i] = 0.f;
+				
+					cSampleRate = ++cSampleRate % (int)(0.5 * sample_rate);
+				}
 			}
 			if (*(UINT16*)lpVoid == MELODY)
 			{
@@ -246,8 +251,8 @@ private:
 	float metronome_frequency_hz_60 = oNote.aFreq[60];
 	float metronome_delta = 2.f * metronome_frequency_hz_60 * float(M_PI / sample_rate);
 	float metronome_phase = 0.f;
-
-	int metronme_tick = 0;
+	
+	int cSampleRate = 0;
 };
 
 //*****************************************************************************
