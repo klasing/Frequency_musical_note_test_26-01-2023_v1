@@ -13,3 +13,11 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+
+#include <stdio.h>
+#include <objbase.h>
+#include <combaseapi.h>
+#include <mmdeviceapi.h>
+#include <audiopolicy.h>
+#include <Audioclient.h>
+#include <devicetopology.h>
