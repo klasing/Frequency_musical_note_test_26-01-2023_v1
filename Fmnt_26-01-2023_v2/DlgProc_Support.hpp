@@ -186,7 +186,7 @@ public:
 					else
 						fData[i] = 0.f;
 				
-					cSampleRate = ++cSampleRate % (int)(0.5 * sample_rate);
+					cSampleRate = ++cSampleRate % (int)((60.f / bpm) * sample_rate);
 				}
 			}
 			if (*(UINT16*)lpVoid == MELODY)
@@ -253,6 +253,7 @@ private:
 	float metronome_phase = 0.f;
 	
 	int cSampleRate = 0;
+	float bpm = 90.f;
 };
 
 //*****************************************************************************
