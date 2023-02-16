@@ -122,7 +122,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
        , 0
        , 0
        , 300
-       , 300
+       , 300//400 when volume control is added, see the .rc file
        , nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
@@ -207,6 +207,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             EndPaint(hWnd, &ps);
         }
         break;
+    case WM_NCDESTROY:
+    {
+        CoUninitialize();
+        return (INT_PTR)FALSE;
+    } // eof WM_NCDESTROY
     case WM_DESTROY:
         PostQuitMessage(0);
         break;

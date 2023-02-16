@@ -13,6 +13,13 @@
 #define IDC_MELODY				30105
 #define IDC_START				30106
 
+#define IDC_CB_BPM				30204
+
+#define IDT_BPM_TIM				30304
+
+#define IDC_SLIDER_VOLUME		30400
+#define IDC_CHECK_MUTE			30401
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Fmnt_26-01-2023_v3.rc
