@@ -13,6 +13,7 @@
 #define IDC_MELODY				30105
 #define IDC_START				30106
 
+#define IDC_CB_NOTE				30201
 #define IDC_CB_BPM				30204
 
 #define IDT_BPM_TIM				30304

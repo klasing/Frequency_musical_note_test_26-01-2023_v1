@@ -121,7 +121,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW
        , 0
        , 0
-       , 300
+       , 500
        , 300//400 when volume control is added, see the .rc file
        , nullptr, nullptr, hInstance, nullptr);
 

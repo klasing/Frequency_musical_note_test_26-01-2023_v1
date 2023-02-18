@@ -11,6 +11,8 @@
 #define PITCH_STANDARD_HZ	440.f
 #define SAMPLE_RATE			48'000
 
+#define BUFFER_MAX			64
+
 //*****************************************************************************
 //*                     Note
 //*****************************************************************************
@@ -35,6 +37,10 @@ public:
 //*                     global
 //*****************************************************************************
 Note g_oNote;
+DWORD g_flags = 0;
+
+UINT16 g_play_item = 0;
+float g_frequency_hz = 0.f;
 
 //*****************************************************************************
 //*                     MyAudioSource
@@ -42,14 +48,6 @@ Note g_oNote;
 class MyAudioSource
 {
 public:
-	//************************************************************************
-	//*                 <<constructor>>
-	//************************************************************************
-	MyAudioSource() : format()
-		, engine(__rdtsc())
-		, float_dist(-1.f, 1.f)
-	{ }
-
 	//************************************************************************
 	//*                 SetFormat
 	//************************************************************************
@@ -69,59 +67,61 @@ public:
 	// the size of an audio frame = nChannels * wBitsPerSample
 	HRESULT LoadData(UINT32& numFramesAvailable
 		, BYTE* pData
-		, DWORD* pFlags
-		, UINT16* play_item
 	)
 	{
 		const UINT16 formatTag = EXTRACT_WAVEFORMATEX_ID(&format.SubFormat);
 		if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
 		{
 			float* fData = (float*)pData;
-			switch (*play_item)
+			switch (g_play_item)
 			{
-			case METRONOME:
+			case NOISE:
 			{
+				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+				{
+					fData[i] = float_dist(engine);
+				}
 				break;
-			} // eof METRONOME
+			} // eof NOISE
+			case NOTE:
+			{
+				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+				{
+					float next_sample = std::sin(phase);
+					phase = std::fmod(phase + delta, 2.f * static_cast<float>(M_PI));
+					fData[i] = next_sample;
+				}
+				break;
+			} // eof NOTE
 			} // eof switch
 		}
-
 		return S_OK;
 	}
 
 	//************************************************************************
-	//*                 initMetronome
-	//************************************************************************
-	VOID initMetronome(const UINT16& bpm)
+//*                 init
+//************************************************************************
+	VOID init()
 	{
-		// at this interval we need to generate a metronome tick
-		sample_interval_bpm = 60 * SAMPLE_RATE / bpm;
+		switch (g_play_item)
+		{
+		case NOTE:
+		{
+			delta = 2.f * g_frequency_hz * float(M_PI / SAMPLE_RATE);
+			phase = 0.f;
+			break;
+		} // eof NOTE
+		} // eof switch
 	}
-
 private:
 	WAVEFORMATEXTENSIBLE format;
-	std::array<float, 2 * 48'000> a = {};
+	// NOISE
 	std::mt19937_64 engine;
 	std::uniform_real_distribution<float> float_dist;
-
-	// the metronome ticks with oNote.aFreq[57] = 220 Hz
-	float metronome_frequency_hz = g_oNote.aFreq[57];
-	float metronome_delta = 2.f * metronome_frequency_hz * float(M_PI / SAMPLE_RATE);
-	float metronome_phase = 0.f;
-
-	UINT16 sample_interval_bpm = 0;
-	UINT16 sample_tick_bpm = SAMPLE_RATE / metronome_frequency_hz;
+	// NOTE
+	float delta = 0.f;
+	float phase = 0.f;
 };
-
-//*****************************************************************************
-//*                     struct
-//*****************************************************************************
-using define_code = UINT16;
-typedef struct tagPARAM
-{
-	define_code _play_item;
-	UINT16 _bpm;
-} PARAM, * PPARAM;
 
 //*****************************************************************************
 //*                     special purpose global
@@ -160,15 +160,10 @@ DWORD WINAPI playAudioStream(LPVOID lpVoid)
 	IAudioClient* pAudioClient = NULL;
 	IAudioRenderClient* pRenderClient = NULL;
 	BYTE* pData;
-	DWORD flags = 0;
-	PPARAM lpParameter = static_cast<PPARAM>(lpVoid);
-	UINT16* play_item = &lpParameter->_play_item;
 
-	std::unique_ptr<MyAudioSource> pMySource(new MyAudioSource);
-	if (*play_item == METRONOME)
-	{
-		pMySource->initMetronome(lpParameter->_bpm);
-	}
+	std::unique_ptr<MyAudioSource> pMySource = std::unique_ptr<MyAudioSource>
+		(new MyAudioSource);
+	if (g_play_item == NOTE) pMySource->init();
 
 	hr = CoInitialize(nullptr);
 
@@ -227,13 +222,11 @@ DWORD WINAPI playAudioStream(LPVOID lpVoid)
 	// load the initial data into the shared buffer
 	hr = pMySource->LoadData(bufferFrameCount
 		, pData
-		, &flags
-		, play_item
 	);
 	EXIT_ON_ERROR(hr);
 
 	hr = pRenderClient->ReleaseBuffer(bufferFrameCount
-		, flags
+		, g_flags
 	);
 	EXIT_ON_ERROR(hr);
 
@@ -246,9 +239,42 @@ DWORD WINAPI playAudioStream(LPVOID lpVoid)
 	EXIT_ON_ERROR(hr);
 
 	// each loop fills about half of the shared buffer
-	while (flags != AUDCLNT_BUFFERFLAGS_SILENT)
+	while (g_flags != AUDCLNT_BUFFERFLAGS_SILENT)
 	{
+		// sleep for half the buffer duration
+		Sleep((DWORD)(hnsActualDuration / REFTIMES_PER_MILLISEC / 2));
+
+		// see how much buffer space is available
+		hr = pAudioClient->GetCurrentPadding(&numFramesPadding);
+		EXIT_ON_ERROR(hr);
+
+		numFramesAvailable = bufferFrameCount - numFramesPadding;
+
+		// grab all the available space in the shared buffer
+		hr = pRenderClient->GetBuffer(numFramesAvailable
+			, &pData
+		);
+		EXIT_ON_ERROR(hr);
+
+		// get next 1/2-second of data from the audio source
+		hr = pMySource->LoadData(numFramesAvailable
+			, pData
+		);
+		EXIT_ON_ERROR(hr);
+
+		hr = pRenderClient->ReleaseBuffer(numFramesAvailable
+			, g_flags
+		);
+		EXIT_ON_ERROR(hr);
 	}
+
+	// wait for the last data in buffer to play before stopping
+	// time unit in millisecond
+	// don't wait too long
+	Sleep((DWORD)(hnsActualDuration / REFTIMES_PER_MILLISEC / 64));
+
+	hr = pAudioClient->Stop();
+	EXIT_ON_ERROR(hr);
 
 Exit:
 	// cleanup
@@ -267,18 +293,20 @@ Exit:
 //*                     start_play
 //*****************************************************************************
 using define_code = UINT16;
-BOOL start_play(const define_code& play_item
-	, const UINT16& bpm
-)
+BOOL start_play(const define_code& play_item)
 {
-	PPARAM lpParameter = new PARAM;
-	lpParameter->_play_item = play_item;
-	lpParameter->_bpm = bpm;
+	OutputDebugString(L"start_play()\n");
+
+	// reset flag to enable playing
+	g_flags = 0;
+
+	// set global to convey into thread space
+	g_play_item = play_item;
 
 	CreateThread(NULL
 		, 0
 		, playAudioStream
-		, (LPVOID)lpParameter
+		, (LPVOID)nullptr
 		, 0
 		, NULL
 	);
@@ -293,6 +321,605 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	, const HWND& hDlg
 )
 {
+	// add content to the combobox IDC_CB_NOTE
+	WCHAR wszBuffer[16] = { '\0' };
+	for (auto i = 0; i < 128; ++i)
+	{
+		swprintf_s(wszBuffer, (size_t)16, L"%3d - %6.1f", i, g_oNote.aFreq[i]);
+		SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+			, CB_ADDSTRING
+			, (WPARAM)0
+			, (LPARAM)wszBuffer//std::to_wstring(i).c_str()
+		);
+	}
+	// set 440.0 Hz (A4) list item as current selection
+	// in the combobox IDC_CB_NOTE
+	SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+		, CB_SETCURSEL
+		, (WPARAM)69
+		, (LPARAM)0
+	);
+	// add content to the combobox IDC_CB_BPM
+	for (auto i = 0; i <= 42; ++i)
+	{
+		// the available range is from 60 bpm to 480 bpm
+		// 480 = 60 + 10 * 42
+		SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+			, CB_ADDSTRING
+			, (WPARAM)0
+			, (LPARAM)std::to_wstring((int)60 + i * 10).c_str()
+		);
+	}
+	// set first list item as current selection
+	// in the combobox IDC_CB_BPM
+	SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+		, CB_SETCURSEL
+		, (WPARAM)0
+		, (LPARAM)0
+	);
+	// check the fifth//first// radiobutton
+	SendMessage(GetDlgItem(hDlg, IDC_METRONOME)
+		, BM_SETCHECK
+		, (WPARAM)BST_CHECKED
+		, (LPARAM)0
+	);
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmSize_DlgProc
+//*****************************************************************************
+BOOL onWmSize_DlgProc(const HWND& hDlg
+)
+{
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmCommand_DlgProc
+//*****************************************************************************
+INT_PTR onWmCommand_DlgProc(const HWND& hDlg
+	, const WPARAM& wParam
+)
+{
+	switch (LOWORD(wParam))
+	{
+	case IDC_START:
+	{
+		WCHAR wszBuffer[BUFFER_MAX] = { '\0' };
+		HWND hWnd = GetDlgItem(hDlg, IDC_START);
+		SendMessage(hWnd
+			, WM_GETTEXT
+			, (WPARAM)BUFFER_MAX
+			, (LPARAM)wszBuffer
+		);
+		if (wcscmp(wszBuffer, L"Start") == 0)
+		{
+			OutputDebugString(L"Start\n");
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Stop"
+			);
+			if (SendMessage(GetDlgItem(hDlg, IDC_NOISE)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				OutputDebugString(L"NOISE\n");
+				start_play(NOISE);
+			}
+			if (SendMessage(GetDlgItem(hDlg, IDC_NOTE)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+					, WM_GETTEXT
+					, (WPARAM)BUFFER_MAX
+					, (LPARAM)wszBuffer
+				);
+				std::wstring wstrFrequency = wszBuffer;
+				wstrFrequency = wstrFrequency.erase(0
+					, wstrFrequency.find(L" - ") + 3
+				);
+				OutputDebugString(L"NOTE\n");
+				g_frequency_hz = _wtof(wstrFrequency.c_str());
+				start_play(NOTE);
+			}
+			if (SendMessage(GetDlgItem(hDlg, IDC_SWEEP)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				OutputDebugString(L"SWEEP\n");
+				start_play(SWEEP);
+			}
+			if (SendMessage(GetDlgItem(hDlg, IDC_CHORD)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				OutputDebugString(L"CHORD\n");
+				start_play(CHORD);
+			}
+			if (SendMessage(GetDlgItem(hDlg, IDC_METRONOME)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+					, WM_GETTEXT
+					, (WPARAM)BUFFER_MAX
+					, (LPARAM)wszBuffer
+				);
+				OutputDebugString(L"METRONOME\n");
+				start_play(METRONOME);
+			}
+			if (SendMessage(GetDlgItem(hDlg, IDC_MELODY)
+				, BM_GETSTATE
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				OutputDebugString(L"MELODY\n");
+				start_play(MELODY);
+			}
+		}
+		if (wcscmp(wszBuffer, L"Stop") == 0)
+		{
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Start"
+			);
+			OutputDebugString(L"Stop\n");
+			// stop func playAudioStream() and let the thread die
+			g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
+		}
+		return (INT_PTR)TRUE;
+	} // eof IDC_START
+	} // eof wsitch
+	return (INT_PTR)FALSE;
+}
+
+/*
+/////////////////////// waste 1 //////////////////////////////////////////////
+//****************************************************************************
+//*                     include
+//****************************************************************************
+#include "framework.h"
+#include "Fmnt_26-01-2023_v3.h"
+
+//*****************************************************************************
+//*                     special purpose define
+//*****************************************************************************
+#define PITCH_STANDARD_HZ	440.f
+#define SAMPLE_RATE			48'000
+
+//*****************************************************************************
+//*                     Note
+//*****************************************************************************
+class Note
+{
+public:
+	//************************************************************************
+	//*                 <<constructor>>
+	//************************************************************************
+	Note()
+	{
+		for (int i = 0; i < 128; i++)
+		{
+			aFreq[i] = PITCH_STANDARD_HZ
+				* std::pow(2.0f, float(i - 69) / 12.0f);
+		}
+	}
+	FLOAT aFreq[128] = { 0 };
+};
+
+//*****************************************************************************
+//*                     global
+//*****************************************************************************
+DWORD g_flags = 0;
+Note g_oNote;
+
+//*****************************************************************************
+//*                     struct
+//*****************************************************************************
+//using define_code = UINT16;
+//typedef struct tagPARAM
+//{
+//	define_code _play_item;
+//	UINT16 _bpm;
+//} PARAM, * PPARAM;
+
+using define_code = UINT16;
+typedef struct tagPARAMPLAY
+{
+	define_code _play_item;
+	FLOAT _frequency_hz;
+	UINT16 _bpm;
+} PARAMPLAY, * PPARAMPLAY;
+
+//*****************************************************************************
+//*                     MyAudioSource
+//*****************************************************************************
+class MyAudioSource
+{
+public:
+	//************************************************************************
+	//*                 <<constructor>>
+	//************************************************************************
+	MyAudioSource() : format()
+		, engine(__rdtsc())
+		, float_dist(-1.f, 1.f)
+	{ }
+
+	//************************************************************************
+	//*                 SetFormat
+	//************************************************************************
+	HRESULT SetFormat(WAVEFORMATEX* pwfx)
+	{
+		if (pwfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+		{
+			format = *reinterpret_cast<WAVEFORMATEXTENSIBLE*>(pwfx);
+		}
+
+		return S_OK;
+	}
+
+	//************************************************************************
+	//*                 LoadData
+	//************************************************************************
+	// the size of an audio frame = nChannels * wBitsPerSample
+	HRESULT LoadData(UINT32& numFramesAvailable
+		, BYTE* pData
+		, DWORD* pFlags
+		, UINT16* play_item
+	)
+	{
+		const UINT16 formatTag = EXTRACT_WAVEFORMATEX_ID(&format.SubFormat);
+		if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
+		{
+			float* fData = (float*)pData;
+			switch (*play_item)
+			{
+			case NOISE:
+			{
+				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+				{
+					fData[i] = float_dist(engine);
+				}
+				break;
+			} // eof NOISE
+			case NOTE:
+			{
+				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+				{
+					float next_sample = std::sin(phase);
+					phase = std::fmod(phase + delta, 2.f * static_cast<float>(M_PI));
+					fData[i] = next_sample;
+				}
+				break;
+			} // eof NOTE
+			case METRONOME:
+			{
+				for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+				{
+					float next_sample = std::sin(metronome_phase);
+					metronome_phase = std::fmod(metronome_phase + metronome_delta, 2.f * static_cast<float>(M_PI));
+					if (i < duration_tick && cSample < SAMPLE_RATE)
+						fData[i] = next_sample;
+					else
+						fData[i] = 0.f;
+
+					cSample = ++cSample % sample_interval_bpm;
+				}
+				break;
+			} // eof METRONOME
+			} // eof switch
+		}
+
+		return S_OK;
+	}
+	//************************************************************************
+	//*                 init
+	//************************************************************************
+	VOID init(const LPVOID& lpVoid)
+	{
+		switch (static_cast<PPARAMPLAY>(lpVoid)->_play_item)
+		{
+		case NOTE:
+		{
+			frequency_hz = static_cast<PPARAMPLAY>(lpVoid)->_frequency_hz;
+			break;
+		} // eof NOTE
+		case METRONOME:
+		{
+			break;
+		} // eof METRONOME
+		} // eof switch
+	}
+	//************************************************************************
+	//*                 initMetronome
+	//************************************************************************
+	//VOID initMetronome(const UINT16& bpm)
+	//{
+	//	// TODO: not all values will generate a pure tick sound
+	//	// TODO: the tick interval is double the value of bpm
+	//	// at this interval we need to generate a metronome tick
+	//	sample_interval_bpm = (60.f / ((float).5 * bpm)) * SAMPLE_RATE;
+	//	duration_tick = 10 * sample_tick_bpm;
+	//}
+
+private:
+	WAVEFORMATEXTENSIBLE format;
+	std::array<float, 2 * 48'000> a = {};
+
+	// for noise
+	std::mt19937_64 engine;
+	std::uniform_real_distribution<float> float_dist;
+
+	float frequency_hz = g_oNote.aFreq[69]; // 69 = 440.f Hz
+	float delta = 2.f * frequency_hz * float(M_PI / SAMPLE_RATE);
+	float phase = 0.f;
+
+	// the metronome ticks with oNote.aFreq[57] = 220 Hz
+	float metronome_frequency_hz = g_oNote.aFreq[57];
+	float metronome_delta = 2.f * metronome_frequency_hz * float(M_PI / SAMPLE_RATE);
+	float metronome_phase = 0.f;
+
+	UINT16 sample_interval_bpm = 0;
+	UINT16 duration_tick = 0;
+	UINT16 sample_tick_bpm = SAMPLE_RATE / metronome_frequency_hz;
+	UINT32 cSample = 0;
+};
+
+	//			for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
+	//			{
+	//				float next_sample = std::sin(metronome_phase);
+	//				metronome_phase = std::fmod(metronome_phase + metronome_delta, 2.f * static_cast<float>(M_PI));
+	//				if (i < 2182 && cSampleRate < 2182)
+	//					fData[i] = next_sample;
+	//				else
+	//					fData[i] = 0.f;
+
+	//				cSampleRate = ++cSampleRate % (int)((60.f / bpm) * sample_rate);
+	//			}
+
+	//				// the metronome ticks with oNote.aFreq[45] = 220 Hz
+	//float metronome_frequency_hz_60 = oNote.aFreq[60];
+	//float metronome_delta = 2.f * metronome_frequency_hz_60 * float(M_PI / sample_rate);
+	//float metronome_phase = 0.f;
+	//
+	//int cSampleRate = 0;
+	//float bpm = 90.f;
+
+
+//*****************************************************************************
+//*                     special purpose global
+//*****************************************************************************
+const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
+const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
+const IID IID_IAudioClient = __uuidof(IAudioClient);
+const IID IID_IAudioRenderClient = __uuidof(IAudioRenderClient);
+
+//*****************************************************************************
+//*                     special purpose define
+//*****************************************************************************
+// REFERENCE_TIME time units per second and per millisecond
+#define REFTIMES_PER_SEC 10'000'000
+#define REFTIMES_PER_MILLISEC 10'000
+
+#define EXIT_ON_ERROR(hres) \
+	if (FAILED(hres)) { goto Exit; }
+#define SAFE_RELEASE(punk) \
+	if ((punk) != NULL) \
+	  { (punk)->Release(); (punk) = NULL; }
+//*****************************************************************************
+//*                     playAudioStream
+//*****************************************************************************
+DWORD WINAPI playAudioStream(LPVOID lpVoid)
+{
+	HRESULT hr;
+	REFERENCE_TIME hnsRequestDuration = REFTIMES_PER_SEC;
+	REFERENCE_TIME hnsActualDuration;
+	UINT32 numFramesPadding = 0;
+	UINT32 numFramesAvailable = 0;
+	UINT32 bufferFrameCount = 0;
+	WAVEFORMATEX* pwfx = NULL;
+	IMMDeviceEnumerator* pEnumerator = NULL;
+	IMMDevice* pDevice = NULL;
+	IAudioClient* pAudioClient = NULL;
+	IAudioRenderClient* pRenderClient = NULL;
+	BYTE* pData;
+	UINT16* play_item = &(static_cast<PPARAMPLAY>(lpVoid))->_play_item;
+	//PPARAM lpParameter = static_cast<PPARAM>(lpVoid);
+	//UINT16* play_item = &lpParameter->_play_item;
+
+	std::unique_ptr<MyAudioSource> pMySource(new MyAudioSource);
+	pMySource->init(lpVoid);
+	//if (static_cast<PPARAMPLAY>(lpVoid)->_play_item == METRONOME)
+	////if (*play_item == METRONOME)
+	//{
+	//	pMySource->initMetronome(static_cast<PPARAMPLAY>(lpVoid)->_bpm);
+	//}
+
+	hr = CoInitialize(nullptr);
+
+	hr = CoCreateInstance(CLSID_MMDeviceEnumerator
+		, NULL
+		, CLSCTX_ALL
+		, IID_IMMDeviceEnumerator
+		, (void**)&pEnumerator
+	);
+	EXIT_ON_ERROR(hr);
+
+	hr = pEnumerator->GetDefaultAudioEndpoint(eRender
+		, eConsole
+		, &pDevice
+	);
+	EXIT_ON_ERROR(hr);
+
+	hr = pDevice->Activate(IID_IAudioClient
+		, CLSCTX_ALL
+		, NULL
+		, (void**)&pAudioClient
+	);
+	EXIT_ON_ERROR(hr);
+
+	hr = pAudioClient->GetMixFormat(&pwfx);
+	EXIT_ON_ERROR(hr);
+
+	hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED
+		, 0
+		, hnsRequestDuration
+		, 0
+		, pwfx
+		, NULL
+	);
+	EXIT_ON_ERROR(hr);
+
+	hr = pMySource->SetFormat(pwfx);
+	EXIT_ON_ERROR(hr);
+
+	// tell the audio source which format to use
+	hr = pAudioClient->GetBufferSize(&bufferFrameCount);
+	EXIT_ON_ERROR(hr);
+
+	// get the actual size of the allocated buffer
+	hr = pAudioClient->GetService(IID_IAudioRenderClient
+		, (void**)&pRenderClient
+	);
+	EXIT_ON_ERROR(hr);
+
+	// grab the entire buffer for the initial fill operation
+	hr = pRenderClient->GetBuffer(bufferFrameCount
+		, &pData
+	);
+	EXIT_ON_ERROR(hr);
+
+	// load the initial data into the shared buffer
+	hr = pMySource->LoadData(bufferFrameCount
+		, pData
+		, &g_flags
+		, play_item
+	);
+	EXIT_ON_ERROR(hr);
+
+	hr = pRenderClient->ReleaseBuffer(bufferFrameCount
+		, g_flags
+	);
+	EXIT_ON_ERROR(hr);
+
+	// calculate the actual duration of the allocated buffer
+	hnsActualDuration = REFTIMES_PER_SEC
+		* bufferFrameCount / pwfx->nSamplesPerSec;
+
+	// start playing
+	hr = pAudioClient->Start();
+	EXIT_ON_ERROR(hr);
+
+	// each loop fills about half of the shared buffer
+	while (g_flags != AUDCLNT_BUFFERFLAGS_SILENT)
+	{
+		// sleep for half the buffer duration
+		Sleep((DWORD)(hnsActualDuration / REFTIMES_PER_MILLISEC / 2));
+
+		// see how much buffer space is available
+		hr = pAudioClient->GetCurrentPadding(&numFramesPadding);
+		EXIT_ON_ERROR(hr);
+
+		numFramesAvailable = bufferFrameCount - numFramesPadding;
+
+		// grab all the available space in the shared buffer
+		hr = pRenderClient->GetBuffer(numFramesAvailable
+			, &pData
+		);
+		EXIT_ON_ERROR(hr);
+
+		// get next 1/2-second of data from the audio source
+		hr = pMySource->LoadData(numFramesAvailable
+			, pData
+			, &g_flags
+			, play_item
+		);
+		EXIT_ON_ERROR(hr);
+
+		hr = pRenderClient->ReleaseBuffer(numFramesAvailable
+			, g_flags
+		);
+		EXIT_ON_ERROR(hr);
+	}
+
+	// wait for the last data in buffer to play before stopping
+	// time unit in millisecond
+	// don't wait too long
+	Sleep((DWORD)(hnsActualDuration / REFTIMES_PER_MILLISEC / 64));
+
+	hr = pAudioClient->Stop();
+	EXIT_ON_ERROR(hr);
+
+Exit:
+	// cleanup
+	CoTaskMemFree(pwfx);
+	SAFE_RELEASE(pEnumerator);
+	SAFE_RELEASE(pDevice);
+	SAFE_RELEASE(pAudioClient);
+	SAFE_RELEASE(pRenderClient);
+	// func CoUninitialize() is called when WndProc
+	// is handling the WM_NCDESTROY message
+
+	return 0;
+}
+
+//*****************************************************************************
+//*                     start_play
+//*****************************************************************************
+//using define_code = UINT16;
+//BOOL start_play(const define_code& play_item
+//	, const UINT16& bpm = 0
+//)
+BOOL start_play(const PARAMPLAY& param_play)
+{
+	// reset flag to enable playing
+	g_flags = 0;
+
+	//PPARAM lpParameter = new PARAM;
+	//lpParameter->_play_item = play_item;
+	//lpParameter->_bpm = bpm;
+
+	CreateThread(NULL
+		, 0
+		, playAudioStream
+		, (LPVOID)&param_play//lpParameter
+		, 0
+		, NULL
+	);
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmInitDialog_DlgProc
+//*****************************************************************************
+BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
+	, const HWND& hDlg
+)
+{
+	// add content to the combobox IDC_CB_NOTE
+	WCHAR wszBuffer[16] = { '\0' };
+	for (auto i = 0; i < 128; ++i)
+	{
+		swprintf_s(wszBuffer, (size_t)16, L"%3d - %6.1f", i, g_oNote.aFreq[i]);
+		SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+			, CB_ADDSTRING
+			, (WPARAM)0
+			, (LPARAM)wszBuffer//std::to_wstring(i).c_str()
+		);
+	}
 	// add content to the combobox IDC_CB_BPM
 	for (auto i = 0; i <= 42; ++i)
 	{
@@ -343,6 +970,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	case IDC_START:
 	{
 		WCHAR pwszBuffer[64] = { '\0' };
+		PARAMPLAY param_play = { 0 };
 		HWND hWnd = GetDlgItem(hDlg, IDC_START);
 		SendMessage(hWnd
 			, WM_GETTEXT
@@ -362,13 +990,26 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
-				//start_play(NOISE);
+				param_play._play_item = NOISE;
+				start_play(param_play);
 			}
 			if (SendMessage(GetDlgItem(hDlg, IDC_NOTE)
 				, BM_GETSTATE
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
+				SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+					, WM_GETTEXT
+					, (WPARAM)64
+					, (LPARAM)pwszBuffer
+				);
+				std::wstring wstrFrequency = pwszBuffer;
+				wstrFrequency = wstrFrequency.erase(0
+					, wstrFrequency.find(L" - ") + 3
+				);
+				param_play._play_item = NOTE;
+				param_play._frequency_hz = _wtof(wstrFrequency.c_str());
+				start_play(param_play);
 				//start_play(NOTE);
 			}
 			if (SendMessage(GetDlgItem(hDlg, IDC_SWEEP)
@@ -390,15 +1031,17 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
-				WCHAR wszBufferBpm[8] = { '\0' };;
 				SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
 					, WM_GETTEXT
-					, (WPARAM)8
-					, (LPARAM)wszBufferBpm
+					, (WPARAM)64
+					, (LPARAM)pwszBuffer
 				);
-				start_play(METRONOME
-					, _wtoi(wszBufferBpm)
-				);
+				param_play._play_item = METRONOME;
+				param_play._bpm = _wtoi(pwszBuffer);
+				start_play(param_play);
+				//start_play(METRONOME
+				//	, _wtoi(pwszBuffer)
+				//);
 				//CALLBACK_STRUCT callback_struct;
 				//callback_struct.hWnd = hDlg;
 				//callback_struct.bpm = static_cast<uint16_t>(
@@ -438,14 +1081,14 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 			// kill timer
 			//KillTimer(hDlg, IDT_BPM_TIM);
 			// stop func playAudioStream() and let the thread die
-			//g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
+			g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
 		}
 		return (INT_PTR)TRUE;
 	} // eof IDC_START
 	} // eof wsitch
 	return (INT_PTR)FALSE;
 }
-
+*/
 /*
 /////////////////////// waste ////////////////////////////////////////////////
 //****************************************************************************
