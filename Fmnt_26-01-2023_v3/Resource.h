@@ -14,12 +14,16 @@
 #define IDC_START				30106
 
 #define IDC_CB_NOTE				30201
-#define IDC_CB_BPM				30204
+#define IDC_CB_SWEEP_LO			30202
+#define IDC_CB_SWEEP_HI			30203
+#define IDC_CB_CHORD			30204
+#define IDC_CB_BPM				30205
 
 #define IDT_BPM_TIM				30304
 
-#define IDC_SLIDER_VOLUME		30400
-#define IDC_CHECK_MUTE			30401
+#define IDC_SLIDER_LVOLUME		30400
+#define IDC_SLIDER_RVOLUME		30401
+#define IDC_CHECK_MUTE			30402
 
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.

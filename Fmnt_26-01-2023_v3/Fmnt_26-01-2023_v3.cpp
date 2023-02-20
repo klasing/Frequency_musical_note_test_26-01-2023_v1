@@ -121,7 +121,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW
        , 0
        , 0
-       , 500
+       , 800
        , 300//400 when volume control is added, see the .rc file
        , nullptr, nullptr, hInstance, nullptr);
 
@@ -244,6 +244,13 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         return (INT_PTR)TRUE;
     } // eof WM_SIZE
+    case WM_NOTIFY:
+    {
+        onWmNotify_DlgProc(hDlg
+            , lParam
+        );
+        return (INT_PTR)TRUE;
+    } // eof WM_NOTIFY
     case WM_COMMAND:
     {
 
