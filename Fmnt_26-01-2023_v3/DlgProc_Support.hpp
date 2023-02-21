@@ -49,8 +49,8 @@ int g_idx_chord = 0;
 
 int g_bpm = 0;
 
-float g_left_volume = 1.f;
-float g_right_volume = 1.f;
+volatile float g_left_volume = 1.f;
+volatile float g_right_volume = 1.f;
 
 //*****************************************************************************
 //*                     MyAudioSource
@@ -592,40 +592,62 @@ BOOL onWmSize_DlgProc(const HWND& hDlg
 //*****************************************************************************
 //*                     onWmNotify_DlgProc
 //*****************************************************************************
-BOOL onWmNotify_DlgProc(const HWND& hDlg
+//BOOL onWmNotify_DlgProc(const HWND& hDlg
+//	, const LPARAM& lParam
+//)
+//{
+//	switch (((LPNMHDR)lParam)->code)
+//	{
+//	case NM_RELEASEDCAPTURE:
+//	{
+//		switch (((LPNMHDR)lParam)->idFrom)
+//		{
+//		case IDC_SLIDER_LVOLUME:
+//		{
+//			g_left_volume = (float)(SendMessage(GetDlgItem(hDlg, IDC_SLIDER_LVOLUME)
+//				, TBM_GETPOS
+//				, (WPARAM)0
+//				, (LPARAM)0
+//			) / 100.f);
+//
+//			break;
+//		} // eof IDC_SLIDER_LVOLUME
+//		case IDC_SLIDER_RVOLUME:
+//		{
+//			g_right_volume = (float)(SendMessage(GetDlgItem(hDlg, IDC_SLIDER_RVOLUME)
+//				, TBM_GETPOS
+//				, (WPARAM)0
+//				, (LPARAM)0
+//			) / 100.f);
+//
+//			break;
+//		} // eof IDC_SLIDER_RVOLUME
+//		} // eof switch
+//		break;
+//	}
+//	} // eof switch
+//
+//	return EXIT_SUCCESS;
+//}
+//*****************************************************************************
+//*                     onWmHscroll_DlgProc
+//*****************************************************************************
+BOOL onWmHscroll_DlgProc(const HWND& hDlg
+	, const WPARAM& wParam
 	, const LPARAM& lParam
 )
 {
-	switch (((LPNMHDR)lParam)->code)
+	if (LOWORD(wParam) == TB_THUMBTRACK)
 	{
-	case NM_RELEASEDCAPTURE:
-	{
-		switch (((LPNMHDR)lParam)->idFrom)
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_SLIDER_LVOLUME))
 		{
-		case IDC_SLIDER_LVOLUME:
+			g_left_volume = (float)(HIWORD(wParam) / 100.f);
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_SLIDER_RVOLUME))
 		{
-			g_left_volume = (float)(SendMessage(GetDlgItem(hDlg, IDC_SLIDER_LVOLUME)
-				, TBM_GETPOS
-				, (WPARAM)0
-				, (LPARAM)0
-			) / 100.f);
-
-			break;
-		} // eof IDC_SLIDER_LVOLUME
-		case IDC_SLIDER_RVOLUME:
-		{
-			g_right_volume = (float)(SendMessage(GetDlgItem(hDlg, IDC_SLIDER_RVOLUME)
-				, TBM_GETPOS
-				, (WPARAM)0
-				, (LPARAM)0
-			) / 100.f);
-
-			break;
-		} // eof IDC_SLIDER_RVOLUME
-		} // eof switch
-		break;
+			g_right_volume = (float)(HIWORD(wParam) / 100.f);
+		}
 	}
-	} // eof switch
 
 	return EXIT_SUCCESS;
 }

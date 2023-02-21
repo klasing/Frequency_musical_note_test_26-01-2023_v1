@@ -246,11 +246,19 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     } // eof WM_SIZE
     case WM_NOTIFY:
     {
-        onWmNotify_DlgProc(hDlg
+        //onWmNotify_DlgProc(hDlg
+        //    , lParam
+        //);
+        return (INT_PTR)TRUE;
+    } // eof WM_NOTIFY
+    case WM_HSCROLL:
+    {
+        onWmHscroll_DlgProc(hDlg
+            , wParam
             , lParam
         );
         return (INT_PTR)TRUE;
-    } // eof WM_NOTIFY
+    } // eof WM_HSCROLL
     case WM_COMMAND:
     {
 
