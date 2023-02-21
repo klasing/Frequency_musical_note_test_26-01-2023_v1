@@ -49,8 +49,8 @@ int g_idx_chord = 0;
 
 int g_bpm = 0;
 
-volatile float g_left_volume = 1.f;
-volatile float g_right_volume = 1.f;
+float g_left_volume = 1.f;
+float g_right_volume = 1.f;
 
 //*****************************************************************************
 //*                     MyAudioSource
