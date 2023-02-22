@@ -27,6 +27,9 @@
     <ClInclude Include="Mixer_Fmnt_26-01-2023_v1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DlgProc_Support.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Mixer_Fmnt_26-01-2023_v1.cpp">
