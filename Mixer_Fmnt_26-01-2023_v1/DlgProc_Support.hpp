@@ -1101,6 +1101,36 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof IDC_START
 	} // eof switch
 
+	switch (HIWORD(wParam))
+	{
+	case CBN_SELCHANGE:
+	{
+		// the user changed the selection in one of the comboboxes
+		// LOWORD(wParam) contains the control identifier of the combobox
+		// lParam contains a handle to the combobox
+		switch (LOWORD(wParam))
+		{
+		case IDC_CB_NOTE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_NOTE
+		case IDC_CB_SWEEP_HI:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_SWEEP_HI
+		case IDC_CB_SWEEP_LO:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_SWEEP_LO
+		} // eof switch
+		return (INT_PTR)FALSE;
+	} // eof CBN_EDITCHANGE
+
+	} // eof switch
+
 	return (INT_PTR)FALSE;
 }
 
