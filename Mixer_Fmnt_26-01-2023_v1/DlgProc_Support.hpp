@@ -1113,16 +1113,19 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 		case IDC_CB_NOTE:
 		{
 			OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
+			// TODO:
 			return (INT_PTR)TRUE;
 		} // eof IDC_CB_NOTE
 		case IDC_CB_SWEEP_HI:
 		{
 			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
+			// TODO:
 			return (INT_PTR)TRUE;
 		} // eof IDC_CB_SWEEP_HI
 		case IDC_CB_SWEEP_LO:
 		{
 			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
+			// TODO:
 			return (INT_PTR)TRUE;
 		} // eof IDC_CB_SWEEP_LO
 		} // eof switch
