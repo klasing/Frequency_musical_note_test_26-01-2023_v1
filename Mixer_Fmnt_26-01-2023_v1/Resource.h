@@ -2,6 +2,7 @@
 
 #define NOISE					1
 #define NOTE					2
+#define SWEEP					4
 
 #define IDC_NOISE				30400
 #define IDC_LVOLUME_CHNL1		30401
