@@ -51,9 +51,12 @@ DWORD g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
 
 UINT16 g_play_item = 0;
 float g_frequency_hz = 0.f;
+int g_idx_freq_sweep_lo = 0;
+int g_idx_freq_sweep_hi = 0;
 
 Volume g_volume_chnl1;
 Volume g_volume_chnl2;
+Volume g_volume_chnl3;
 
 //*****************************************************************************
 //*                     MyAudioSource
@@ -86,6 +89,32 @@ public:
 		if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
 		{
 			float* fData = (float*)pData;
+
+			// must be outside the -UINT32 i- loop
+			// this count controls the sweep rate
+			if (cSweep == sweep_rate)
+			{
+				// upper note index for the sweep
+				if (up_down > 0 && index_sweep < g_idx_freq_sweep_hi)
+					++index_sweep;
+				else
+				{
+					up_down = -1;
+					// lower note index for the sweep
+					if (up_down < 0 && index_sweep > g_idx_freq_sweep_lo)
+						--index_sweep;
+					else
+						up_down = 1;
+				}
+
+				cSweep = 0;
+			}
+			else
+				++cSweep;
+
+			sweep_freq = g_oNote.aFreq[index_sweep];
+			sweep_delta = 2.f * sweep_freq * float(M_PI / SAMPLE_RATE);
+			
 			for (UINT32 i = 0; i < format.Format.nChannels * numFramesAvailable; i++)
 			{
 				fData[i] = 0.f;
@@ -109,6 +138,17 @@ public:
 						fData[i] += 
 						g_volume_chnl2.right_volume * next_sample;
 				}
+				if ((g_play_item & SWEEP) == SWEEP)
+				{
+					float next_sample = std::sin(sweep_phase);
+					sweep_phase = std::fmod(sweep_phase + sweep_delta, 2.f * static_cast<float>(M_PI));
+					if (i % 2 == 0)
+						fData[i] += 
+						g_volume_chnl3.left_volume * next_sample;
+					else
+						fData[i] += 
+						g_volume_chnl3.right_volume * next_sample;
+				}
 			}
 		}
 		return S_OK;
@@ -122,6 +162,10 @@ public:
 		{
 			delta = 2.f * g_frequency_hz * float(M_PI / SAMPLE_RATE);
 		}
+		if ((g_play_item & SWEEP) == SWEEP)
+		{
+			index_sweep = g_idx_freq_sweep_lo;
+		}
 	}
 
 private:
@@ -132,6 +176,14 @@ private:
 	// NOTE
 	float delta = 0.f;
 	float phase = 0.f;
+	// SWEEP
+	int sweep_rate = 16;
+	int cSweep = 0;
+	int index_sweep = 0;
+	int up_down = 1;
+	float sweep_freq = 0.f;
+	float sweep_delta = 0.f;
+	float sweep_phase = 0.f;
 };
 /*
 class MyAudioSource
@@ -843,6 +895,50 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 
 			return EXIT_SUCCESS;
 		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL3))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL3)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_volume_chnl3.left_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_LVOLUME_CHNL3"
+				, track_pos
+				, g_volume_chnl3.left_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL3))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL3)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_volume_chnl3.right_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RVOLUME_CHNL3"
+				, track_pos
+				, g_volume_chnl3.right_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
 	} // eof TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK
 	} // eof switch
 
@@ -922,6 +1018,54 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 		}  // eof switch
 		break;
 	} // eof IDC_NOTE
+	case IDC_SWEEP:
+	{
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
+		{
+			if (SendMessage((HWND)lParam
+				, BM_GETCHECK
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				// get index low frequency sweep
+				SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_LO)
+					, WM_GETTEXT
+					, (WPARAM)BUFFER_MAX
+					, (LPARAM)wszBuffer
+				);
+				wstrFrequency = wszBuffer;
+				wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
+					, wstrFrequency.length()
+				);
+				g_idx_freq_sweep_lo = _wtoi(wstrFrequency.c_str());
+				// get index high frequency sweep
+				SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_HI)
+					, WM_GETTEXT
+					, (WPARAM)BUFFER_MAX
+					, (LPARAM)wszBuffer
+				);
+				wstrFrequency = wszBuffer;
+				wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
+					, wstrFrequency.length()
+				);
+				g_idx_freq_sweep_hi = _wtoi(wstrFrequency.c_str());
+				// the lower sweep frequency must be lower
+				// than the high sweep frequency
+				if (g_idx_freq_sweep_hi > g_idx_freq_sweep_lo)
+					g_play_item |= SWEEP;
+			}
+			else
+			{
+				g_play_item &= ~SWEEP;
+			}
+			
+			return (INT_PTR)TRUE;
+		} // eof BN_CLICKED
+		}  // eof switch
+		break;
+	} // eof IDC_SWEEP
 	case IDC_START:
 	{
 		HWND hWnd = GetDlgItem(hDlg, IDC_START);
