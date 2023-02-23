@@ -22,3 +22,14 @@
 #define _USE_MATH_DEFINES
 #endif
 #include <cmath>
+#include <random>
+
+// windows multimedia device
+#include <mmreg.h>
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+
+// wasapi
+#include <initguid.h>
+#include <audiopolicy.h>
+#include <Audioclient.h>

@@ -1,14 +1,23 @@
 #define BUFFER_MAX				128
 
+#define NOISE					1
+#define NOTE					2
+
 #define IDC_NOISE				30400
 #define IDC_LVOLUME_CHNL1		30401
 #define IDC_RVOLUME_CHNL1		30402
-#define IDC_LVOLUME_CHNL2		30403
-#define IDC_RVOLUME_CHNL2		30404
-#define IDC_LVOLUME_CHNL3		30405
-#define IDC_RVOLUME_CHNL3		30406
-#define IDC_LVOLUME_OUT 		30407
-#define IDC_RVOLUME_OUT 		30408
+#define IDC_NOTE				30403
+#define IDC_CB_NOTE				30404
+#define IDC_LVOLUME_CHNL2		30405
+#define IDC_RVOLUME_CHNL2		30406
+#define IDC_SWEEP				30407
+#define IDC_CB_SWEEP_HI			30408
+#define IDC_CB_SWEEP_LO			30409
+#define IDC_LVOLUME_CHNL3		30410
+#define IDC_RVOLUME_CHNL3		30411
+#define IDC_LVOLUME_OUT 		30412
+#define IDC_RVOLUME_OUT 		30413
+#define IDC_START				30414
 
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.

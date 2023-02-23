@@ -262,6 +262,7 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         onWmCommand_DlgProc(hDlg
             , wParam
+            , lParam
         );
 
         // this break is vital, otherwise a WM_COMMAND falls
