@@ -126,7 +126,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	   , 10
 	   , 10
 	   , 580
-	   , 480
+	   , 640
 	   , nullptr, nullptr, hInstance, nullptr
    );
 
@@ -214,7 +214,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_NCDESTROY:
     {
-//        CoUninitialize();
+        CoUninitialize();
         return (INT_PTR)FALSE;
     } // eof WM_NCDESTROY
     case WM_DESTROY:

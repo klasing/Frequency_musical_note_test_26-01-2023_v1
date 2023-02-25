@@ -9,11 +9,11 @@
 //*****************************************************************************
 //*                     struct
 //*****************************************************************************
-typedef struct tagVOLUME
+typedef struct tagSLIDER
 {
 	float left_volume = 0.f;
 	float right_volume = 0.f;
-} VOLUME, *PVOLUME;
+} SLIDER, *PSLIDER;
 
 //*****************************************************************************
 //*                     special purpose define
@@ -46,25 +46,28 @@ public:
 //*****************************************************************************
 typedef struct tagINIT
 {
-	Note g_oNote;
-	DWORD g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
-	UINT16 g_play_item = 0;
+	Note oNote;
+	DWORD flags = AUDCLNT_BUFFERFLAGS_SILENT;
+	UINT16 play_item = 0;
 	// NOISE
-	VOLUME volume_chnl1;
+	SLIDER volume_chnl1;
 	// NOTE
-	float g_frequency_hz = PITCH_STANDARD_HZ;
-	VOLUME volume_chnl2;
+	float frequency_hz = PITCH_STANDARD_HZ;
+	SLIDER volume_chnl2;
 	// SWEEP
-	int g_idx_freq_sweep_lo = 45;
-	int g_idx_freq_sweep_hi = 93;
-	VOLUME volume_chnl3;
+	int idx_freq_sweep_lo = 45;
+	int idx_freq_sweep_hi = 93;
+	SLIDER volume_chnl3;
+	SLIDER rate_sweep; // this is not abstracted very well
 	// CHORD
-	std::vector<std::vector<float>> g_chord{};
-	int g_idx_chord = 0;
-	VOLUME volume_chnl4;
+	std::vector<std::vector<float>> chord{};
+	int idx_chord = 0;
+	SLIDER volume_chnl4;
 	// METRONOME
-	int g_bpm = 0;
-	VOLUME volume_chnl5;
+	int bpm = 0;
+	SLIDER volume_chnl5;
+	// MELODY
+	SLIDER volume_chnl6;
 } INIT, * PINIT;
 
 //*****************************************************************************
@@ -85,11 +88,16 @@ int g_idx_chord = 0;
 
 int g_bpm = 0;
 
-VOLUME g_volume_chnl1;
-VOLUME g_volume_chnl2;
-VOLUME g_volume_chnl3;
-VOLUME g_volume_chnl4;
-VOLUME g_volume_chnl5;
+SLIDER g_volume_chnl1;
+SLIDER g_volume_chnl2;
+SLIDER g_volume_chnl3;
+SLIDER g_rate_sweep; // this is not abstracted very well
+SLIDER g_volume_chnl4;
+SLIDER g_volume_chnl5;
+SLIDER g_volume_chnl6;
+
+//PINIT g_pinit{};
+std::unique_ptr<INIT> g_pinit = std::unique_ptr<INIT>(new INIT);
 
 //*****************************************************************************
 //*                     MyAudioSource
@@ -901,11 +909,13 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	chord.push_back(g_oNote.aFreq[57]);
 	chord.push_back(g_oNote.aFreq[53]);
 	g_chord.push_back(chord);
+	g_pinit->chord.push_back(chord);
 	chord.clear();
 	chord.push_back(g_oNote.aFreq[62]);
 	chord.push_back(g_oNote.aFreq[59]);
 	chord.push_back(g_oNote.aFreq[55]);
 	g_chord.push_back(chord);
+	g_pinit->chord.push_back(chord);
 
 	// add content to the combobox IDC_CB_BPM
 	for (auto i = 0; i <= 21; ++i)
@@ -961,7 +971,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl1.left_volume =
+			g_pinit->volume_chnl1.left_volume = g_volume_chnl1.left_volume =
 				track_pos / 100.f;
 				//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -983,7 +993,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl1.right_volume =
+			g_pinit->volume_chnl1.right_volume = g_volume_chnl1.right_volume =
 				track_pos / 100.f;
 				//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1006,7 +1016,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl2.left_volume =
+			g_pinit->volume_chnl2.left_volume = g_volume_chnl2.left_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1028,7 +1038,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl2.right_volume =
+			g_pinit->volume_chnl2.right_volume = g_volume_chnl2.right_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1050,7 +1060,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl3.left_volume =
+			g_pinit->volume_chnl3.left_volume = g_volume_chnl3.left_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1072,7 +1082,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl3.right_volume =
+			g_pinit->volume_chnl3.right_volume = g_volume_chnl3.right_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1087,6 +1097,28 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 
 			return EXIT_SUCCESS;
 		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RATE_SWEEP))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RATE_SWEEP)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_pinit->rate_sweep.left_volume = g_rate_sweep.left_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RATE_SWEEP"
+				, track_pos
+				, g_rate_sweep.left_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
 		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL4))
 		{
 			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL4)
@@ -1094,7 +1126,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl4.left_volume =
+			g_pinit->volume_chnl4.left_volume = g_volume_chnl4.left_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1116,7 +1148,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl4.right_volume =
+			g_pinit->volume_chnl4.right_volume = g_volume_chnl4.right_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1138,7 +1170,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl5.left_volume =
+			g_pinit->volume_chnl5.left_volume = g_volume_chnl5.left_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1160,7 +1192,7 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0);
 
-			g_volume_chnl5.right_volume =
+			g_pinit->volume_chnl5.right_volume = g_volume_chnl5.right_volume =
 				track_pos / 100.f;
 			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
 
@@ -1170,6 +1202,50 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 				, L"IDC_RVOLUME_CHNL5"
 				, track_pos
 				, g_volume_chnl5.right_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL6))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL6)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_pinit->volume_chnl6.left_volume = g_volume_chnl6.left_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_LVOLUME_CHNL6"
+				, track_pos
+				, g_volume_chnl6.left_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL6))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL6)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_pinit->volume_chnl6.right_volume = g_volume_chnl6.right_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RVOLUME_CHNL6"
+				, track_pos
+				, g_volume_chnl6.right_volume
 			);
 			OutputDebugString(wszBuffer);
 
@@ -1190,6 +1266,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 )
 {
 	std::wstring wstrFrequency = L"";
+	WCHAR wszBuffer[BUFFER_MAX] = { '\0' };
 	switch (LOWORD(wParam))
 	{
 	case IDC_NOISE:
@@ -1209,10 +1286,8 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 			{
 				g_play_item &= ~NOISE;
 			}
-
 			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
 			OutputDebugString(wszBuffer);
-
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
@@ -1229,26 +1304,14 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
-				SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
-					, WM_GETTEXT
-					, (WPARAM)BUFFER_MAX
-					, (LPARAM)wszBuffer
-				);
-				wstrFrequency = wszBuffer;
-				wstrFrequency = wstrFrequency.erase(0
-					, wstrFrequency.find(L" - ") + 3
-				);
-				g_frequency_hz = _wtof(wstrFrequency.c_str());
 				g_play_item |= NOTE;
 			}
 			else
 			{
 				g_play_item &= ~NOTE;
 			}
-
 			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
 			OutputDebugString(wszBuffer);
-
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
@@ -1265,38 +1328,14 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
-				// get index low frequency sweep
-				SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_LO)
-					, WM_GETTEXT
-					, (WPARAM)BUFFER_MAX
-					, (LPARAM)wszBuffer
-				);
-				wstrFrequency = wszBuffer;
-				wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
-					, wstrFrequency.length()
-				);
-				g_idx_freq_sweep_lo = _wtoi(wstrFrequency.c_str());
-				// get index high frequency sweep
-				SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_HI)
-					, WM_GETTEXT
-					, (WPARAM)BUFFER_MAX
-					, (LPARAM)wszBuffer
-				);
-				wstrFrequency = wszBuffer;
-				wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
-					, wstrFrequency.length()
-				);
-				g_idx_freq_sweep_hi = _wtoi(wstrFrequency.c_str());
-				// the lower sweep frequency must be lower
-				// than the high sweep frequency
-				if (g_idx_freq_sweep_hi > g_idx_freq_sweep_lo)
-					g_play_item |= SWEEP;
+				g_play_item |= SWEEP;
 			}
 			else
 			{
 				g_play_item &= ~SWEEP;
 			}
-			
+			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
+			OutputDebugString(wszBuffer);
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
@@ -1313,18 +1352,14 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
-				g_idx_chord = SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
-					, CB_GETCURSEL
-					, (WPARAM)0
-					, (LPARAM)0
-				);
 				g_play_item |= CHORD;
 			}
 			else
 			{
 				g_play_item &= ~CHORD;
 			}
-
+			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
+			OutputDebugString(wszBuffer);
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
@@ -1341,25 +1376,141 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)0) == BST_CHECKED)
 			{
-				SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
-					, WM_GETTEXT
-					, (WPARAM)BUFFER_MAX
-					, (LPARAM)wszBuffer
-				);
-				std::wstring wstrBpm = wszBuffer;
-				g_bpm = _wtoi(wstrBpm.c_str());
 				g_play_item |= METRONOME;
 			}
 			else
 			{
 				g_play_item &= ~METRONOME;
 			}
-
+			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
+			OutputDebugString(wszBuffer);
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
 		break;
 	} // eof IDC_METRONOME
+	case IDC_MELODY:
+	{
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
+		{
+			if (SendMessage((HWND)lParam
+				, BM_GETCHECK
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				g_play_item |= MELODY;
+			}
+			else
+			{
+				g_play_item &= ~MELODY;
+			}
+			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
+			OutputDebugString(wszBuffer);
+			return (INT_PTR)TRUE;
+		} // eof BN_CLICKED
+		}  // eof switch
+		break;
+	} // eof IDC_MELODY
+	case IDC_CB_NOTE:
+	{
+		OutputDebugString(L"IDC_CB_NOTE\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+				, WM_GETTEXT
+				, (WPARAM)BUFFER_MAX
+				, (LPARAM)wszBuffer
+			);
+			wstrFrequency = wszBuffer;
+			wstrFrequency = wstrFrequency.erase(0
+				, wstrFrequency.find(L" - ") + 3
+			);
+			g_pinit->frequency_hz = g_frequency_hz = 
+				_wtof(wstrFrequency.c_str());
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_NOTE
+	case IDC_CB_SWEEP_HI:
+	{
+		OutputDebugString(L"IDC_CB_SWEEP_HI\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			// get sweep high frequency
+			SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_HI)
+				, WM_GETTEXT
+				, (WPARAM)BUFFER_MAX
+				, (LPARAM)wszBuffer
+			);
+			wstrFrequency = wszBuffer;
+			wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
+				, wstrFrequency.length()
+			);
+			g_idx_freq_sweep_hi = _wtoi(wstrFrequency.c_str());
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_SWEEP_HI
+	case IDC_CB_SWEEP_LO:
+	{
+		OutputDebugString(L"IDC_CB_SWEEP_LO\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			// get sweep low frequency
+			SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_LO)
+				, WM_GETTEXT
+				, (WPARAM)BUFFER_MAX
+				, (LPARAM)wszBuffer
+			);
+			wstrFrequency = wszBuffer;
+			wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
+				, wstrFrequency.length()
+			);
+			g_idx_freq_sweep_lo = _wtoi(wstrFrequency.c_str());
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_SWEEP_LO
+	case IDC_CB_CHORD:
+	{
+		OutputDebugString(L"IDC_CB_CHORD\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_CHORD
+	case IDC_CB_BPM:
+	{
+		OutputDebugString(L"IDC_CB_BPM\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_BPM
 	case IDC_START:
 	{
 		HWND hWnd = GetDlgItem(hDlg, IDC_START);
@@ -1377,9 +1528,8 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)L"Stop"
 			);
-			start_play();
 		}
-		if (wcscmp(wszBuffer, L"Stop") == 0)
+		else
 		{
 			OutputDebugString(L"Stop\n");
 			// change text on button
@@ -1388,59 +1538,274 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, (WPARAM)0
 				, (LPARAM)L"Start"
 			);
-			// stop func playAudioStream() and let the thread die
-			g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
 		}
 		return (INT_PTR)TRUE;
+		break;
 	} // eof IDC_START
 	} // eof switch
-
-	switch (HIWORD(wParam))
-	{
-	case CBN_SELCHANGE:
-	{
-		// the user changed the selection in one of the comboboxes
-		// LOWORD(wParam) contains the control identifier of the combobox
-		// lParam contains a handle to the combobox
-		switch (LOWORD(wParam))
-		{
-		case IDC_CB_NOTE:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_NOTE
-		case IDC_CB_SWEEP_HI:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_SWEEP_HI
-		case IDC_CB_SWEEP_LO:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_SWEEP_LO
-		case IDC_CB_CHORD:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_CHORD\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_CHORD
-		case IDC_CB_BPM:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_BPM\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_BPM
-		} // eof switch
-		return (INT_PTR)FALSE;
-	} // eof CBN_EDITCHANGE
-	} // eof switch
-
 	return (INT_PTR)FALSE;
 }
+
+//*****************************************************************************
+//*                     onWmCommand_DlgProc
+//*****************************************************************************
+//INT_PTR onWmCommand_DlgProc(const HWND& hDlg
+//	, const WPARAM& wParam
+//	, const LPARAM& lParam
+//)
+//{
+//	std::wstring wstrFrequency = L"";
+//	switch (LOWORD(wParam))
+//	{
+//	case IDC_NOISE:
+//	{
+//		switch (HIWORD(wParam))
+//		{
+//		case BN_CLICKED:
+//		{
+//			if (SendMessage((HWND)lParam
+//				, BM_GETCHECK
+//				, (WPARAM)0
+//				, (LPARAM)0) == BST_CHECKED)
+//			{
+//				g_play_item |= NOISE;
+//			}
+//			else
+//			{
+//				g_play_item &= ~NOISE;
+//			}
+//
+//			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
+//			OutputDebugString(wszBuffer);
+//
+//			return (INT_PTR)TRUE;
+//		} // eof BN_CLICKED
+//		}  // eof switch
+//		break;
+//	} // eof IDC_NOISE
+//	case IDC_NOTE:
+//	{
+//		switch (HIWORD(wParam))
+//		{
+//		case BN_CLICKED:
+//		{
+//			if (SendMessage((HWND)lParam
+//				, BM_GETCHECK
+//				, (WPARAM)0
+//				, (LPARAM)0) == BST_CHECKED)
+//			{
+//				SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
+//					, WM_GETTEXT
+//					, (WPARAM)BUFFER_MAX
+//					, (LPARAM)wszBuffer
+//				);
+//				wstrFrequency = wszBuffer;
+//				wstrFrequency = wstrFrequency.erase(0
+//					, wstrFrequency.find(L" - ") + 3
+//				);
+//				g_frequency_hz = _wtof(wstrFrequency.c_str());
+//				g_play_item |= NOTE;
+//			}
+//			else
+//			{
+//				g_play_item &= ~NOTE;
+//			}
+//
+//			swprintf_s(wszBuffer, (size_t)BUFFER_MAX, L"g_play_item: %d\n", g_play_item);
+//			OutputDebugString(wszBuffer);
+//
+//			return (INT_PTR)TRUE;
+//		} // eof BN_CLICKED
+//		}  // eof switch
+//		break;
+//	} // eof IDC_NOTE
+//	case IDC_SWEEP:
+//	{
+//		switch (HIWORD(wParam))
+//		{
+//		case BN_CLICKED:
+//		{
+//			if (SendMessage((HWND)lParam
+//				, BM_GETCHECK
+//				, (WPARAM)0
+//				, (LPARAM)0) == BST_CHECKED)
+//			{
+//				// get index low frequency sweep
+//				SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_LO)
+//					, WM_GETTEXT
+//					, (WPARAM)BUFFER_MAX
+//					, (LPARAM)wszBuffer
+//				);
+//				wstrFrequency = wszBuffer;
+//				wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
+//					, wstrFrequency.length()
+//				);
+//				g_idx_freq_sweep_lo = _wtoi(wstrFrequency.c_str());
+//				// get index high frequency sweep
+//				SendMessage(GetDlgItem(hDlg, IDC_CB_SWEEP_HI)
+//					, WM_GETTEXT
+//					, (WPARAM)BUFFER_MAX
+//					, (LPARAM)wszBuffer
+//				);
+//				wstrFrequency = wszBuffer;
+//				wstrFrequency = wstrFrequency.erase(wstrFrequency.find(L" - ")
+//					, wstrFrequency.length()
+//				);
+//				g_idx_freq_sweep_hi = _wtoi(wstrFrequency.c_str());
+//				// the lower sweep frequency must be lower
+//				// than the high sweep frequency
+//				if (g_idx_freq_sweep_hi > g_idx_freq_sweep_lo)
+//					g_play_item |= SWEEP;
+//			}
+//			else
+//			{
+//				g_play_item &= ~SWEEP;
+//			}
+//			
+//			return (INT_PTR)TRUE;
+//		} // eof BN_CLICKED
+//		}  // eof switch
+//		break;
+//	} // eof IDC_SWEEP
+//	case IDC_CHORD:
+//	{
+//		switch (HIWORD(wParam))
+//		{
+//		case BN_CLICKED:
+//		{
+//			if (SendMessage((HWND)lParam
+//				, BM_GETCHECK
+//				, (WPARAM)0
+//				, (LPARAM)0) == BST_CHECKED)
+//			{
+//				g_idx_chord = SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
+//					, CB_GETCURSEL
+//					, (WPARAM)0
+//					, (LPARAM)0
+//				);
+//				g_play_item |= CHORD;
+//			}
+//			else
+//			{
+//				g_play_item &= ~CHORD;
+//			}
+//
+//			return (INT_PTR)TRUE;
+//		} // eof BN_CLICKED
+//		}  // eof switch
+//		break;
+//	} // eof IDC_CHORD
+//	case IDC_METRONOME:
+//	{
+//		switch (HIWORD(wParam))
+//		{
+//		case BN_CLICKED:
+//		{
+//			if (SendMessage((HWND)lParam
+//				, BM_GETCHECK
+//				, (WPARAM)0
+//				, (LPARAM)0) == BST_CHECKED)
+//			{
+//				SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+//					, WM_GETTEXT
+//					, (WPARAM)BUFFER_MAX
+//					, (LPARAM)wszBuffer
+//				);
+//				std::wstring wstrBpm = wszBuffer;
+//				g_bpm = _wtoi(wstrBpm.c_str());
+//				g_play_item |= METRONOME;
+//			}
+//			else
+//			{
+//				g_play_item &= ~METRONOME;
+//			}
+//
+//			return (INT_PTR)TRUE;
+//		} // eof BN_CLICKED
+//		}  // eof switch
+//		break;
+//	} // eof IDC_METRONOME
+//	case IDC_START:
+//	{
+//		HWND hWnd = GetDlgItem(hDlg, IDC_START);
+//		SendMessage(hWnd
+//			, WM_GETTEXT
+//			, (WPARAM)BUFFER_MAX
+//			, (LPARAM)wszBuffer
+//		);
+//		if (wcscmp(wszBuffer, L"Start") == 0)
+//		{
+//			OutputDebugString(L"Start\n");
+//			// change text on button
+//			SendMessage(hWnd
+//				, WM_SETTEXT
+//				, (WPARAM)0
+//				, (LPARAM)L"Stop"
+//			);
+//			start_play();
+//		}
+//		if (wcscmp(wszBuffer, L"Stop") == 0)
+//		{
+//			OutputDebugString(L"Stop\n");
+//			// change text on button
+//			SendMessage(hWnd
+//				, WM_SETTEXT
+//				, (WPARAM)0
+//				, (LPARAM)L"Start"
+//			);
+//			// stop func playAudioStream() and let the thread die
+//			g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
+//		}
+//		return (INT_PTR)TRUE;
+//	} // eof IDC_START
+//	} // eof switch
+//
+//	switch (HIWORD(wParam))
+//	{
+//	case CBN_SELCHANGE:
+//	{
+//		// the user changed the selection in one of the comboboxes
+//		// LOWORD(wParam) contains the control identifier of the combobox
+//		// lParam contains a handle to the combobox
+//		switch (LOWORD(wParam))
+//		{
+//		case IDC_CB_NOTE:
+//		{
+//			OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
+//			// TODO:
+//			return (INT_PTR)TRUE;
+//		} // eof IDC_CB_NOTE
+//		case IDC_CB_SWEEP_HI:
+//		{
+//			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
+//			// TODO:
+//			return (INT_PTR)TRUE;
+//		} // eof IDC_CB_SWEEP_HI
+//		case IDC_CB_SWEEP_LO:
+//		{
+//			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
+//			// TODO:
+//			return (INT_PTR)TRUE;
+//		} // eof IDC_CB_SWEEP_LO
+//		case IDC_CB_CHORD:
+//		{
+//			OutputDebugString(L"CBN_SELCHANGE IDC_CB_CHORD\n");
+//			// TODO:
+//			return (INT_PTR)TRUE;
+//		} // eof IDC_CB_CHORD
+//		case IDC_CB_BPM:
+//		{
+//			OutputDebugString(L"CBN_SELCHANGE IDC_CB_BPM\n");
+//			// TODO:
+//			return (INT_PTR)TRUE;
+//		} // eof IDC_CB_BPM
+//		} // eof switch
+//		return (INT_PTR)FALSE;
+//	} // eof CBN_EDITCHANGE
+//	} // eof switch
+//
+//	return (INT_PTR)FALSE;
+//}
 
 //*****************************************************************************
 //*                     onWmNotify_DlgProc
