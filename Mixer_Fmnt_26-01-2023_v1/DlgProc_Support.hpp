@@ -5,15 +5,6 @@
 #include "framework.h"
 #include "Mixer_Fmnt_26-01-2023_v1.h"
 
-//*****************************************************************************
-//*                     Volume
-//*****************************************************************************
-//class Volume
-//{
-//public:
-//	float left_volume = 0.f;
-//	float right_volume = 0.f;
-//};
 
 //*****************************************************************************
 //*                     struct
@@ -51,6 +42,32 @@ public:
 };
 
 //*****************************************************************************
+//*                     struct
+//*****************************************************************************
+typedef struct tagINIT
+{
+	Note g_oNote;
+	DWORD g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
+	UINT16 g_play_item = 0;
+	// NOISE
+	VOLUME volume_chnl1;
+	// NOTE
+	float g_frequency_hz = PITCH_STANDARD_HZ;
+	VOLUME volume_chnl2;
+	// SWEEP
+	int g_idx_freq_sweep_lo = 45;
+	int g_idx_freq_sweep_hi = 93;
+	VOLUME volume_chnl3;
+	// CHORD
+	std::vector<std::vector<float>> g_chord{};
+	int g_idx_chord = 0;
+	VOLUME volume_chnl4;
+	// METRONOME
+	int g_bpm = 0;
+	VOLUME volume_chnl5;
+} INIT, * PINIT;
+
+//*****************************************************************************
 //*                     global
 //*****************************************************************************
 WCHAR wszBuffer[BUFFER_MAX] = { '\0' };
@@ -65,6 +82,8 @@ int g_idx_freq_sweep_hi = 93;// 0;
 
 std::vector<std::vector<float>> g_chord{};
 int g_idx_chord = 0;
+
+int g_bpm = 0;
 
 VOLUME g_volume_chnl1;
 VOLUME g_volume_chnl2;
@@ -179,6 +198,27 @@ public:
 						fData[i] += 
 						g_volume_chnl4.right_volume * next_sample;
 				}
+				if ((g_play_item & METRONOME) == METRONOME)
+				{
+					float next_sample = std::sin(metronome_phase);
+					metronome_phase = std::fmod(
+						metronome_phase + metronome_delta, 2.f * static_cast<float>(M_PI));
+
+					if (i < PERIOD_ONE_TICK && cSample < PERIOD_ONE_TICK)
+					{
+						if (i % 2 == 0)
+							fData[i] += 
+							g_volume_chnl5.left_volume * next_sample;
+						else
+							fData[i] += 
+							g_volume_chnl5.right_volume * next_sample;
+					}
+					else
+						fData[i] += 0.f;
+
+					cSample = ++cSample
+						% (int)(2 * SAMPLE_RATE * (60. / (float)g_bpm));
+				}
 			}
 		}
 		return S_OK;
@@ -213,6 +253,7 @@ public:
 			chord_delta1 = chord_delta3 * (chord_freq1 / chord_freq3);
 			chord_phase1 = 0.f;
 		}
+		if ((g_play_item & METRONOME) == METRONOME); // DO NOTHING
 	}
 
 private:
@@ -235,6 +276,12 @@ private:
 	float chord_delta3 = 0.f, chord_delta2 = 0.f, chord_delta1 = 0.f;
 	float chord_phase3 = 0.f, chord_phase2 = 0.f, chord_phase1 = 0.f;
 	float chord_freq3 = 0.f, chord_freq2 = 0.f, chord_freq1 = 0.f;
+	// METRONOME
+	const int PERIOD_ONE_TICK = 9091;
+	float metronome_freq = g_oNote.aFreq[45];
+	float metronome_delta = 2.f * metronome_freq * float(M_PI / SAMPLE_RATE);
+	float metronome_phase = 0.f;
+	int cSample = 0;
 };
 /*
 class MyAudioSource
@@ -1084,6 +1131,50 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 
 			return EXIT_SUCCESS;
 		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL5))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL5)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_volume_chnl5.left_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_LVOLUME_CHNL5"
+				, track_pos
+				, g_volume_chnl5.left_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL5))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL5)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_volume_chnl5.right_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RVOLUME_CHNL5"
+				, track_pos
+				, g_volume_chnl5.right_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
 	} // eof TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK
 	} // eof switch
 
@@ -1239,6 +1330,36 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 		}  // eof switch
 		break;
 	} // eof IDC_CHORD
+	case IDC_METRONOME:
+	{
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
+		{
+			if (SendMessage((HWND)lParam
+				, BM_GETCHECK
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+					, WM_GETTEXT
+					, (WPARAM)BUFFER_MAX
+					, (LPARAM)wszBuffer
+				);
+				std::wstring wstrBpm = wszBuffer;
+				g_bpm = _wtoi(wstrBpm.c_str());
+				g_play_item |= METRONOME;
+			}
+			else
+			{
+				g_play_item &= ~METRONOME;
+			}
+
+			return (INT_PTR)TRUE;
+		} // eof BN_CLICKED
+		}  // eof switch
+		break;
+	} // eof IDC_METRONOME
 	case IDC_START:
 	{
 		HWND hWnd = GetDlgItem(hDlg, IDC_START);
@@ -1274,38 +1395,49 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof IDC_START
 	} // eof switch
 
-	//switch (HIWORD(wParam))
-	//{
-	//case CBN_SELCHANGE:
-	//{
-	//	// the user changed the selection in one of the comboboxes
-	//	// LOWORD(wParam) contains the control identifier of the combobox
-	//	// lParam contains a handle to the combobox
-	//	switch (LOWORD(wParam))
-	//	{
-	//	case IDC_CB_NOTE:
-	//	{
-	//		OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
-	//		// TODO:
-	//		return (INT_PTR)TRUE;
-	//	} // eof IDC_CB_NOTE
-	//	case IDC_CB_SWEEP_HI:
-	//	{
-	//		OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
-	//		// TODO:
-	//		return (INT_PTR)TRUE;
-	//	} // eof IDC_CB_SWEEP_HI
-	//	case IDC_CB_SWEEP_LO:
-	//	{
-	//		OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
-	//		// TODO:
-	//		return (INT_PTR)TRUE;
-	//	} // eof IDC_CB_SWEEP_LO
-	//	} // eof switch
-	//	return (INT_PTR)FALSE;
-	//} // eof CBN_EDITCHANGE
-
-	//} // eof switch
+	switch (HIWORD(wParam))
+	{
+	case CBN_SELCHANGE:
+	{
+		// the user changed the selection in one of the comboboxes
+		// LOWORD(wParam) contains the control identifier of the combobox
+		// lParam contains a handle to the combobox
+		switch (LOWORD(wParam))
+		{
+		case IDC_CB_NOTE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
+			// TODO:
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_NOTE
+		case IDC_CB_SWEEP_HI:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
+			// TODO:
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_SWEEP_HI
+		case IDC_CB_SWEEP_LO:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
+			// TODO:
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_SWEEP_LO
+		case IDC_CB_CHORD:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_CHORD\n");
+			// TODO:
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_CHORD
+		case IDC_CB_BPM:
+		{
+			OutputDebugString(L"CBN_SELCHANGE IDC_CB_BPM\n");
+			// TODO:
+			return (INT_PTR)TRUE;
+		} // eof IDC_CB_BPM
+		} // eof switch
+		return (INT_PTR)FALSE;
+	} // eof CBN_EDITCHANGE
+	} // eof switch
 
 	return (INT_PTR)FALSE;
 }
