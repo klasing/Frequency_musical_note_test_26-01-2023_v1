@@ -23,6 +23,7 @@
 #endif
 #include <cmath>
 #include <random>
+#include <string>
 
 // windows multimedia device
 #include <mmreg.h>

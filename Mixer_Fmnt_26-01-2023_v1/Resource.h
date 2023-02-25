@@ -3,6 +3,9 @@
 #define NOISE					1
 #define NOTE					2
 #define SWEEP					4
+#define CHORD					8
+#define METRONOME				0x10
+#define MELODY					0x20
 
 #define IDC_NOISE				30400
 #define IDC_LVOLUME_CHNL1		30401
@@ -16,9 +19,17 @@
 #define IDC_CB_SWEEP_LO			30409
 #define IDC_LVOLUME_CHNL3		30410
 #define IDC_RVOLUME_CHNL3		30411
-#define IDC_LVOLUME_OUT 		30412
-#define IDC_RVOLUME_OUT 		30413
-#define IDC_START				30414
+#define IDC_CHORD				30412
+#define IDC_CB_CHORD			30413
+#define IDC_LVOLUME_CHNL4		30414
+#define IDC_RVOLUME_CHNL4		30415
+#define IDC_METRONOME			30416
+#define IDC_CB_BPM				30417
+#define IDC_LVOLUME_CHNL5		30418
+#define IDC_RVOLUME_CHNL5		30419
+#define IDC_LVOLUME_CHNL6 		30420
+#define IDC_RVOLUME_CHNL6 		30421
+#define IDC_START				30422
 
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.

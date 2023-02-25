@@ -8,12 +8,21 @@
 //*****************************************************************************
 //*                     Volume
 //*****************************************************************************
-class Volume
+//class Volume
+//{
+//public:
+//	float left_volume = 0.f;
+//	float right_volume = 0.f;
+//};
+
+//*****************************************************************************
+//*                     struct
+//*****************************************************************************
+typedef struct tagVOLUME
 {
-public:
 	float left_volume = 0.f;
 	float right_volume = 0.f;
-};
+} VOLUME, *PVOLUME;
 
 //*****************************************************************************
 //*                     special purpose define
@@ -50,13 +59,18 @@ Note g_oNote;
 DWORD g_flags = AUDCLNT_BUFFERFLAGS_SILENT;
 
 UINT16 g_play_item = 0;
-float g_frequency_hz = 0.f;
-int g_idx_freq_sweep_lo = 0;
-int g_idx_freq_sweep_hi = 0;
+float g_frequency_hz = PITCH_STANDARD_HZ;
+int g_idx_freq_sweep_lo = 45;// 0;
+int g_idx_freq_sweep_hi = 93;// 0;
 
-Volume g_volume_chnl1;
-Volume g_volume_chnl2;
-Volume g_volume_chnl3;
+std::vector<std::vector<float>> g_chord{};
+int g_idx_chord = 0;
+
+VOLUME g_volume_chnl1;
+VOLUME g_volume_chnl2;
+VOLUME g_volume_chnl3;
+VOLUME g_volume_chnl4;
+VOLUME g_volume_chnl5;
 
 //*****************************************************************************
 //*                     MyAudioSource
@@ -149,6 +163,22 @@ public:
 						fData[i] += 
 						g_volume_chnl3.right_volume * next_sample;
 				}
+				if ((g_play_item & CHORD) == CHORD)
+				{
+					float next_sample = std::sin(chord_phase3)
+						+ std::sin(chord_phase2)
+						+ std::sin(chord_phase1);
+					chord_phase3 = std::fmod(chord_phase3 + chord_delta3, 2.f * static_cast<float>(M_PI));
+					chord_phase2 = std::fmod(chord_phase2 + chord_delta2, 2.f * static_cast<float>(M_PI));
+					chord_phase1 = std::fmod(chord_phase1 + chord_delta1, 2.f * static_cast<float>(M_PI));
+
+					if (i % 2 == 0)
+						fData[i] += 
+						g_volume_chnl4.left_volume * next_sample;
+					else
+						fData[i] += 
+						g_volume_chnl4.right_volume * next_sample;
+				}
 			}
 		}
 		return S_OK;
@@ -165,6 +195,23 @@ public:
 		if ((g_play_item & SWEEP) == SWEEP)
 		{
 			index_sweep = g_idx_freq_sweep_lo;
+		}
+		if ((g_play_item & CHORD) == CHORD)
+		{
+			// for now; only for a three note chord
+			chord_freq3 = g_chord[g_idx_chord][0];
+			chord_delta3 = 2.f * chord_freq3 * float(M_PI / SAMPLE_RATE);
+			chord_phase3 = 0.f;
+
+			// the delta for the lower frequencies
+			// are a fraction of the highest frequency delta
+			chord_freq2 = g_chord[g_idx_chord][1];
+			chord_delta2 = chord_delta3 * (chord_freq2 / chord_freq3);
+			chord_phase2 = 0.f;
+
+			chord_freq1 = g_chord[g_idx_chord][2];
+			chord_delta1 = chord_delta3 * (chord_freq1 / chord_freq3);
+			chord_phase1 = 0.f;
 		}
 	}
 
@@ -184,6 +231,10 @@ private:
 	float sweep_freq = 0.f;
 	float sweep_delta = 0.f;
 	float sweep_phase = 0.f;
+	// CHORD
+	float chord_delta3 = 0.f, chord_delta2 = 0.f, chord_delta1 = 0.f;
+	float chord_phase3 = 0.f, chord_phase2 = 0.f, chord_phase1 = 0.f;
+	float chord_freq3 = 0.f, chord_freq2 = 0.f, chord_freq1 = 0.f;
 };
 /*
 class MyAudioSource
@@ -778,6 +829,56 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 		, (LPARAM)0
 	);
 
+	// add content to the combobox IDC_CB_CHORD
+	SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
+		, CB_ADDSTRING
+		, (WPARAM)0
+		, (LPARAM)L"one"
+	);
+	SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
+		, CB_ADDSTRING
+		, (WPARAM)0
+		, (LPARAM)L"two"
+	);
+	// set first list item as current selection
+	// in the combobox IDC_CB_CHORD
+	SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
+		, CB_SETCURSEL
+		, (WPARAM)0 // list item index
+		, (LPARAM)0
+	);
+
+	// set notes for three note chord
+	std::vector<float> chord;
+	chord.push_back(g_oNote.aFreq[60]);
+	chord.push_back(g_oNote.aFreq[57]);
+	chord.push_back(g_oNote.aFreq[53]);
+	g_chord.push_back(chord);
+	chord.clear();
+	chord.push_back(g_oNote.aFreq[62]);
+	chord.push_back(g_oNote.aFreq[59]);
+	chord.push_back(g_oNote.aFreq[55]);
+	g_chord.push_back(chord);
+
+	// add content to the combobox IDC_CB_BPM
+	for (auto i = 0; i <= 21; ++i)
+	{
+		// the available range is from 60 bpm to 270 bpm
+		// 270 = 60 + 10 * 21
+		SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+			, CB_ADDSTRING
+			, (WPARAM)0
+			, (LPARAM)std::to_wstring((int)60 + i * 10).c_str()
+		);
+	}
+	// set first list item as current selection
+	// in the combobox IDC_CB_BPM
+	SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+		, CB_SETCURSEL
+		, (WPARAM)0
+		, (LPARAM)0
+	);
+
 	return EXIT_SUCCESS;
 }
 
@@ -939,6 +1040,50 @@ BOOL onWmHscroll_DlgProc(const HWND& hDlg
 
 			return EXIT_SUCCESS;
 		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL4))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL4)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_volume_chnl4.left_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_LVOLUME_CHNL4"
+				, track_pos
+				, g_volume_chnl4.left_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL4))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL4)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_volume_chnl4.right_volume =
+				track_pos / 100.f;
+			//(track_pos == 0) ? 0. : std::exp(track_pos / 100.f) / M_E;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RVOLUME_CHNL4"
+				, track_pos
+				, g_volume_chnl4.right_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return EXIT_SUCCESS;
+		}
 	} // eof TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK
 	} // eof switch
 
@@ -1066,6 +1211,34 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 		}  // eof switch
 		break;
 	} // eof IDC_SWEEP
+	case IDC_CHORD:
+	{
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
+		{
+			if (SendMessage((HWND)lParam
+				, BM_GETCHECK
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				g_idx_chord = SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
+					, CB_GETCURSEL
+					, (WPARAM)0
+					, (LPARAM)0
+				);
+				g_play_item |= CHORD;
+			}
+			else
+			{
+				g_play_item &= ~CHORD;
+			}
+
+			return (INT_PTR)TRUE;
+		} // eof BN_CLICKED
+		}  // eof switch
+		break;
+	} // eof IDC_CHORD
 	case IDC_START:
 	{
 		HWND hWnd = GetDlgItem(hDlg, IDC_START);
@@ -1101,38 +1274,38 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof IDC_START
 	} // eof switch
 
-	switch (HIWORD(wParam))
-	{
-	case CBN_SELCHANGE:
-	{
-		// the user changed the selection in one of the comboboxes
-		// LOWORD(wParam) contains the control identifier of the combobox
-		// lParam contains a handle to the combobox
-		switch (LOWORD(wParam))
-		{
-		case IDC_CB_NOTE:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_NOTE
-		case IDC_CB_SWEEP_HI:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_SWEEP_HI
-		case IDC_CB_SWEEP_LO:
-		{
-			OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
-			// TODO:
-			return (INT_PTR)TRUE;
-		} // eof IDC_CB_SWEEP_LO
-		} // eof switch
-		return (INT_PTR)FALSE;
-	} // eof CBN_EDITCHANGE
+	//switch (HIWORD(wParam))
+	//{
+	//case CBN_SELCHANGE:
+	//{
+	//	// the user changed the selection in one of the comboboxes
+	//	// LOWORD(wParam) contains the control identifier of the combobox
+	//	// lParam contains a handle to the combobox
+	//	switch (LOWORD(wParam))
+	//	{
+	//	case IDC_CB_NOTE:
+	//	{
+	//		OutputDebugString(L"CBN_SELCHANGE IDC_CB_NOTE\n");
+	//		// TODO:
+	//		return (INT_PTR)TRUE;
+	//	} // eof IDC_CB_NOTE
+	//	case IDC_CB_SWEEP_HI:
+	//	{
+	//		OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_HI\n");
+	//		// TODO:
+	//		return (INT_PTR)TRUE;
+	//	} // eof IDC_CB_SWEEP_HI
+	//	case IDC_CB_SWEEP_LO:
+	//	{
+	//		OutputDebugString(L"CBN_SELCHANGE IDC_CB_SWEEP_LO\n");
+	//		// TODO:
+	//		return (INT_PTR)TRUE;
+	//	} // eof IDC_CB_SWEEP_LO
+	//	} // eof switch
+	//	return (INT_PTR)FALSE;
+	//} // eof CBN_EDITCHANGE
 
-	} // eof switch
+	//} // eof switch
 
 	return (INT_PTR)FALSE;
 }
