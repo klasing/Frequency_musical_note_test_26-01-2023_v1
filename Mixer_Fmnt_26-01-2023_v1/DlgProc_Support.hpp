@@ -49,35 +49,65 @@ typedef struct tagINIT
 	Note oNote;
 	DWORD flags = AUDCLNT_BUFFERFLAGS_SILENT;
 	UINT16 play_item = 0;
+	// NOISE
 	VOLUME volume_chnl1{};
+	// NOTE
 	VOLUME volume_chnl2{};
-	VOLUME volume_chnl3{};
-	RATE rate_sweep{};
 	float frequency_hz = oNote.aFreq[69];
 	float delta_note = 0.f;
 	float phase_note = 0.f;
+	// SWEEP
+	VOLUME volume_chnl3{};
+	RATE rate_sweep{};
 	int idx_freq_sweep_lo = 45;
 	int idx_freq_sweep_hi = 93;
 	int index_sweep = 0;
-	int irate_sweep = 0;
+	int irate_sweep = 16;
 	int cSweep = 0;
+	// CHORD
+	VOLUME volume_chnl4{};
 	std::vector<std::vector<float>> chord{};
+	int idx_chord = 0;
+	float delta3_chord = 0.f, delta2_chord = 0.f, delta1_chord = 0.f;
+	float phase3_chord = 0.f, phase2_chord = 0.f, phase1_chord = 0.f;
+	float freq3_chord = 0.f, freq2_chord = 0.f, freq1_chord = 0.f;
+	// METRONOME
+	VOLUME volume_chnl5{};
+	int bpm = 60;
 	//************************************************************************
 	//*                 init
 	//************************************************************************
-	VOID init()
+	VOID init(const UINT16& play_item_)
 	{
-		if ((play_item & NOTE) == NOTE)
+		if ((play_item & NOTE) == play_item_)
 		{
 			delta_note = 
 				2.f * frequency_hz * float(M_PI / SAMPLE_RATE);
 			return;
 		}
-		if ((play_item & SWEEP) == SWEEP)
+		if ((play_item & SWEEP) == play_item_)
 		{
 			index_sweep = idx_freq_sweep_lo;
 			irate_sweep = 16 - rate_sweep.value;
 			cSweep = 0;
+			return;
+		}
+		if ((play_item & CHORD) == play_item_)
+		{
+			// for now; only for a three note chord
+			freq3_chord = chord[idx_chord][0];
+			delta3_chord = 2.f * freq3_chord * float(M_PI / SAMPLE_RATE);
+			phase3_chord = 0.f;
+
+			// the delta for the lower frequencies
+			// are a fraction of the highest frequency delta
+			freq2_chord = chord[idx_chord][1];
+			delta2_chord = delta3_chord * (freq2_chord / freq3_chord);
+			phase2_chord = 0.f;
+
+			freq1_chord = chord[idx_chord][2];
+			delta1_chord = delta3_chord * (freq1_chord / freq3_chord);
+			phase1_chord = 0.f;
 			return;
 		}
 	}
@@ -185,6 +215,46 @@ public:
 						fData[i] +=
 						g_pinit->volume_chnl3.right_volume * next_sample;
 				}
+				if ((g_pinit->play_item & CHORD) == CHORD)
+				{
+					float next_sample = std::sin(g_pinit->phase3_chord)
+						+ std::sin(g_pinit->phase2_chord)
+						+ std::sin(g_pinit->phase1_chord);
+					g_pinit->phase3_chord =
+						std::fmod(g_pinit->phase3_chord + g_pinit->delta3_chord, 2.f * static_cast<float>(M_PI));
+					g_pinit->phase2_chord =
+						std::fmod(g_pinit->phase2_chord + g_pinit->delta2_chord, 2.f * static_cast<float>(M_PI));
+					g_pinit->phase1_chord =
+						std::fmod(g_pinit->phase1_chord + g_pinit->delta1_chord, 2.f * static_cast<float>(M_PI));
+
+					if (i % 2 == 0)
+						fData[i] +=
+						g_pinit->volume_chnl4.left_volume * next_sample;
+					else
+						fData[i] +=
+						g_pinit->volume_chnl4.right_volume * next_sample;
+				}
+				if ((g_pinit->play_item & METRONOME) == METRONOME)
+				{
+					float next_sample = std::sin(metronome_phase);
+					metronome_phase = std::fmod(
+						metronome_phase + metronome_delta, 2.f * static_cast<float>(M_PI));
+
+					if (i < PERIOD_ONE_TICK && cSample < PERIOD_ONE_TICK)
+					{
+						if (i % 2 == 0)
+							fData[i] +=
+							g_pinit->volume_chnl5.left_volume * next_sample;
+						else
+							fData[i] +=
+							g_pinit->volume_chnl5.right_volume * next_sample;
+					}
+					else
+						fData[i] += 0.f;
+
+					cSample = ++cSample
+						% (int)(2 * SAMPLE_RATE * (60. / (float)g_pinit->bpm));
+				}
 			}
 		}
 		return S_OK;
@@ -200,6 +270,13 @@ private:
 	float freq_sweep = 0.f;
 	float phase_sweep = 0.f;
 	float delta_sweep = 0.f;
+	// METRONOME
+	const int PERIOD_ONE_TICK = 9091;
+	float metronome_freq = g_pinit->oNote.aFreq[45];
+	float metronome_delta = 2.f * metronome_freq * float(M_PI / SAMPLE_RATE);
+	float metronome_phase = 0.f;
+	int cSample = 0;
+
 };
 
 //*****************************************************************************
@@ -481,6 +558,25 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	chord.push_back(g_pinit->oNote.aFreq[55]);
 	g_pinit->chord.push_back(chord);
 
+	// add content to the combobox IDC_CB_BPM
+	for (auto i = 0; i <= 21; ++i)
+	{
+		// the available range is from 60 bpm to 270 bpm
+		// 270 = 60 + 10 * 21
+		SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+			, CB_ADDSTRING
+			, (WPARAM)0
+			, (LPARAM)std::to_wstring((int)60 + i * 10).c_str()
+		);
+	}
+	// set first list item as current selection
+	// in the combobox IDC_CB_BPM
+	SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+		, CB_SETCURSEL
+		, (WPARAM)0
+		, (LPARAM)0
+	);
+
 	// start thread
 	start_play();
 	return EXIT_SUCCESS;
@@ -650,52 +746,93 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 				, 16 - g_pinit->rate_sweep.value
 			);
 			// update rate sweep
-			g_pinit->init();
+			g_pinit->init(SWEEP);
 			OutputDebugString(wszBuffer);
 
 			return (INT_PTR)TRUE;
 		}
 		// CHORD
-		//if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL2))
-		//{
-		//	track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL2)
-		//		, TBM_GETPOS
-		//		, (WPARAM)0
-		//		, (LPARAM)0);
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL4))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL4)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
 
-		//	g_pinit->volume_chnl2.left_volume = track_pos / 100.f;
+			g_pinit->volume_chnl4.left_volume = track_pos / 100.f;
 
-		//	swprintf_s(wszBuffer
-		//		, (size_t)BUFFER_MAX
-		//		, L"%s %d %f\n"
-		//		, L"IDC_LVOLUME_CHNL2"
-		//		, track_pos
-		//		, g_pinit->volume_chnl2.left_volume
-		//	);
-		//	OutputDebugString(wszBuffer);
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_LVOLUME_CHNL4"
+				, track_pos
+				, g_pinit->volume_chnl4.left_volume
+			);
+			OutputDebugString(wszBuffer);
 
-		//	return (INT_PTR)TRUE;
-		//}
-		//if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL2))
-		//{
-		//	track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL2)
-		//		, TBM_GETPOS
-		//		, (WPARAM)0
-		//		, (LPARAM)0);
+			return (INT_PTR)TRUE;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL4))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL4)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
 
-		//	g_pinit->volume_chnl2.right_volume = track_pos / 100.f;
+			g_pinit->volume_chnl4.right_volume = track_pos / 100.f;
 
-		//	swprintf_s(wszBuffer
-		//		, (size_t)BUFFER_MAX
-		//		, L"%s %d %f\n"
-		//		, L"IDC_RVOLUME_CHNL2"
-		//		, track_pos
-		//		, g_pinit->volume_chnl2.right_volume
-		//	);
-		//	OutputDebugString(wszBuffer);
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RVOLUME_CHNL4"
+				, track_pos
+				, g_pinit->volume_chnl4.right_volume
+			);
+			OutputDebugString(wszBuffer);
 
-		//	return (INT_PTR)TRUE;
-		//}
+			return (INT_PTR)TRUE;
+		}
+		// METRONOME
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME_CHNL5))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME_CHNL5)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_pinit->volume_chnl5.left_volume = track_pos / 100.f;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_LVOLUME_CHNL5"
+				, track_pos
+				, g_pinit->volume_chnl5.left_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return (INT_PTR)TRUE;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME_CHNL5))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME_CHNL5)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			g_pinit->volume_chnl5.right_volume = track_pos / 100.f;
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d %f\n"
+				, L"IDC_RVOLUME_CHNL5"
+				, track_pos
+				, g_pinit->volume_chnl5.right_volume
+			);
+			OutputDebugString(wszBuffer);
+
+			return (INT_PTR)TRUE;
+		}
 	} // eof TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK
 	} // eof switch
 	
@@ -764,7 +901,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, g_pinit->play_item
 			);
 			OutputDebugString(wszBuffer);
-			g_pinit->init();
+			g_pinit->init(NOTE);
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
@@ -788,7 +925,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, wstrFrequency.find(L" - ") + 3
 			);
 			g_pinit->frequency_hz = _wtof(wstrFrequency.c_str());
-			g_pinit->init();
+			g_pinit->init(NOTE);
 			return (INT_PTR)TRUE;
 		} // eof CBN_SELCHANGE
 		} // eof switch
@@ -817,7 +954,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, g_pinit->play_item
 			);
 			OutputDebugString(wszBuffer);
-			g_pinit->init();
+			g_pinit->init(SWEEP);
 			return (INT_PTR)TRUE;
 		} // eof BN_CLICKED
 		}  // eof switch
@@ -841,7 +978,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, wstrFrequency.length()
 			);
 			g_pinit->idx_freq_sweep_lo = _wtoi(wstrFrequency.c_str());
-			g_pinit->init();
+			g_pinit->init(SWEEP);
 			return (INT_PTR)TRUE;
 		} // eof CBN_SELCHANGE
 		} // eof switch
@@ -865,12 +1002,109 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 				, wstrFrequency.length()
 			);
 			g_pinit->idx_freq_sweep_hi = _wtoi(wstrFrequency.c_str());
-			g_pinit->init();
+			g_pinit->init(SWEEP);
 			return (INT_PTR)TRUE;
 		} // eof CBN_SELCHANGE
 		} // eof switch
 		break;
 	} // eof IDC_CB_SWEEP_HI
+	case IDC_CHORD:
+	{
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
+		{
+			if (SendMessage((HWND)lParam
+				, BM_GETCHECK
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				g_pinit->play_item |= CHORD;
+			}
+			else
+			{
+				g_pinit->play_item &= ~CHORD;
+			}
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"play_item: %d\n"
+				, g_pinit->play_item
+			);
+			OutputDebugString(wszBuffer);
+			g_pinit->init(CHORD);
+			return (INT_PTR)TRUE;
+		} // eof BN_CLICKED
+		}  // eof switch
+		break;
+	} // eof IDC_CHORD
+	case IDC_CB_CHORD:
+	{
+		OutputDebugString(L"IDC_CB_CHORD\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			g_pinit->idx_chord = SendMessage(GetDlgItem(hDlg, IDC_CB_CHORD)
+				, CB_GETCURSEL
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+			g_pinit->init(CHORD);
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_CHORD
+	case IDC_METRONOME:
+	{
+		switch (HIWORD(wParam))
+		{
+		case BN_CLICKED:
+		{
+			if (SendMessage((HWND)lParam
+				, BM_GETCHECK
+				, (WPARAM)0
+				, (LPARAM)0) == BST_CHECKED)
+			{
+				g_pinit->play_item |= METRONOME;
+			}
+			else
+			{
+				g_pinit->play_item &= ~METRONOME;
+			}
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"play_item: %d\n"
+				, g_pinit->play_item
+			);
+			OutputDebugString(wszBuffer);
+			// no init necessary
+			return (INT_PTR)TRUE;
+		} // eof BN_CLICKED
+		}  // eof switch
+		break;
+	} // eof IDC_METRONOME
+	case IDC_CB_BPM:
+	{
+		OutputDebugString(L"IDC_CB_BPM\n");
+		switch (HIWORD(wParam))
+		{
+		case CBN_SELCHANGE:
+		{
+			OutputDebugString(L"CBN_SELCHANGE\n");
+			SendMessage(GetDlgItem(hDlg, IDC_CB_BPM)
+				, WM_GETTEXT
+				, (WPARAM)BUFFER_MAX
+				, (LPARAM)wszBuffer
+			);
+			std::wstring wstrBpm = wszBuffer;
+			g_pinit->bpm = _wtoi(wstrBpm.c_str());
+			return (INT_PTR)TRUE;
+		} // eof CBN_SELCHANGE
+		} // eof switch
+		break;
+	} // eof IDC_CB_BPM
 	case IDC_START:
 	{
 		HWND hWnd = GetDlgItem(hDlg, IDC_START);
