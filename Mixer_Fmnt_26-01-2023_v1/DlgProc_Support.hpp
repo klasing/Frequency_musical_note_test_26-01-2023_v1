@@ -1156,3 +1156,4 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 //2) frequency modulation (FM)
 //3) attack, decay, sustain, release (ADSR)
 //4) tremelo/leslie
+//win32 capture microphone input

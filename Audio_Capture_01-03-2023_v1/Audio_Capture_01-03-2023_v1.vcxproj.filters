@@ -24,17 +24,20 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Audio_Capture_01-03=2023_v1.h">
+    <ClInclude Include="Audio_Capture_01-03-2023_v1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgProc_Support.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Audio_Capture_01-03=2023_v1.cpp">
+    <ClCompile Include="Audio_Capture_01-03-2023_v1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Audio_Capture_01-03=2023_v1.rc">
+    <ResourceCompile Include="Audio_Capture_01-03-2023_v1.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -42,7 +45,7 @@
     <Image Include="small.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="Audio_Capture_01-03=2023_v1.ico">
+    <Image Include="Audio_Capture_01-03-2023_v1.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

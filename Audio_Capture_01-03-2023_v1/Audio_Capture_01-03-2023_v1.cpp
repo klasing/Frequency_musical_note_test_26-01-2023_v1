@@ -1,8 +1,8 @@
-// Audio_Capture_01-03=2023_v1.cpp : Defines the entry point for the application.
+// Audio_Capture_01-03-2023_v1.cpp : Defines the entry point for the application.
 //
 
 #include "framework.h"
-#include "Audio_Capture_01-03=2023_v1.h"
+#include "Audio_Capture_01-03-2023_v1.h"
 
 #define MAX_LOADSTRING 100
 

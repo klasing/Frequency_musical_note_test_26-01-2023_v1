@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{96121d42-4d7d-42ba-8487-5f3961299ba5}</ProjectGuid>
+    <ProjectGuid>{1564a4ef-79b5-4cd3-8ba9-134d395813e3}</ProjectGuid>
     <RootNamespace>AudioCapture01032023v1</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -127,19 +127,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Audio_Capture_01-03=2023_v1.h" />
+    <ClInclude Include="Audio_Capture_01-03-2023_v1.h" />
+    <ClInclude Include="DlgProc_Support.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Audio_Capture_01-03=2023_v1.cpp" />
+    <ClCompile Include="Audio_Capture_01-03-2023_v1.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Audio_Capture_01-03=2023_v1.rc" />
+    <ResourceCompile Include="Audio_Capture_01-03-2023_v1.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Audio_Capture_01-03=2023_v1.ico" />
+    <Image Include="Audio_Capture_01-03-2023_v1.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
