@@ -12,15 +12,15 @@
 #define SAMPLE_RATE			48'000
 
 //*****************************************************************************
-//*                     Note
+//*                     Notes
 //*****************************************************************************
-class Note
+class Notes
 {
 public:
 	//************************************************************************
 	//*                 <<constructor>>
 	//************************************************************************
-	Note()
+	Notes()
 	{
 		for (int i = 0; i < 128; i++)
 		{
@@ -46,14 +46,14 @@ typedef struct tagRATE
 
 typedef struct tagINIT
 {
-	Note oNote;
+	Notes oNotes;
 	DWORD flags = AUDCLNT_BUFFERFLAGS_SILENT;
 	UINT16 play_item = 0;
 	// NOISE
 	VOLUME volume_chnl1{};
 	// NOTE
 	VOLUME volume_chnl2{};
-	float frequency_hz = oNote.aFreq[69];
+	float frequency_hz = oNotes.aFreq[69];
 	float delta_note = 0.f;
 	float phase_note = 0.f;
 	// SWEEP
@@ -181,7 +181,7 @@ public:
 				else
 					++g_pinit->cSweep;
 
-				freq_sweep = g_pinit->oNote.aFreq[g_pinit->index_sweep];
+				freq_sweep = g_pinit->oNotes.aFreq[g_pinit->index_sweep];
 				delta_sweep = 2.f * freq_sweep * float(M_PI / SAMPLE_RATE);
 			}
 
@@ -278,7 +278,7 @@ private:
 	float delta_sweep = 0.f;
 	// METRONOME
 	const int PERIOD_ONE_TICK = 9091;
-	float metronome_freq = g_pinit->oNote.aFreq[45];
+	float metronome_freq = g_pinit->oNotes.aFreq[45];
 	float metronome_delta = 2.f * metronome_freq * float(M_PI / SAMPLE_RATE);
 	float metronome_phase = 0.f;
 	int cSample = 0;
@@ -483,7 +483,7 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 			, (size_t)16
 			, L"%3d - %6.1f"
 			, i
-			, g_pinit->oNote.aFreq[i]
+			, g_pinit->oNotes.aFreq[i]
 		);
 		// 1) add content to the combobox IDC_CB_NOTE
 		SendMessage(GetDlgItem(hDlg, IDC_CB_NOTE)
@@ -554,14 +554,14 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 
 	// set notes for three note chord
 	std::vector<float> chord;
-	chord.push_back(g_pinit->oNote.aFreq[60]);
-	chord.push_back(g_pinit->oNote.aFreq[57]);
-	chord.push_back(g_pinit->oNote.aFreq[53]);
+	chord.push_back(g_pinit->oNotes.aFreq[60]);
+	chord.push_back(g_pinit->oNotes.aFreq[57]);
+	chord.push_back(g_pinit->oNotes.aFreq[53]);
 	g_pinit->chord.push_back(chord);
 	chord.clear();
-	chord.push_back(g_pinit->oNote.aFreq[62]);
-	chord.push_back(g_pinit->oNote.aFreq[59]);
-	chord.push_back(g_pinit->oNote.aFreq[55]);
+	chord.push_back(g_pinit->oNotes.aFreq[62]);
+	chord.push_back(g_pinit->oNotes.aFreq[59]);
+	chord.push_back(g_pinit->oNotes.aFreq[55]);
 	g_pinit->chord.push_back(chord);
 
 	// add content to the combobox IDC_CB_BPM
