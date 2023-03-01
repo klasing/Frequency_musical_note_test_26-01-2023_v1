@@ -77,22 +77,26 @@ typedef struct tagINIT
 	//************************************************************************
 	//*                 init
 	//************************************************************************
-	VOID init(const UINT16& play_item_)
+	VOID init(const UINT16& play_item)
 	{
-		if ((play_item & NOTE) == play_item_)
+		switch (play_item)
 		{
-			delta_note = 
+		case NOTE:
+		{
+			delta_note =
 				2.f * frequency_hz * float(M_PI / SAMPLE_RATE);
+
 			return;
-		}
-		if ((play_item & SWEEP) == play_item_)
+		} // eof NOTE
+		case SWEEP:
 		{
 			index_sweep = idx_freq_sweep_lo;
 			irate_sweep = 16 - rate_sweep.value;
 			cSweep = 0;
+
 			return;
-		}
-		if ((play_item & CHORD) == play_item_)
+		} // eof SWEEP
+		case CHORD:
 		{
 			// for now; only for a three note chord
 			freq3_chord = chord[idx_chord][0];
@@ -108,8 +112,10 @@ typedef struct tagINIT
 			freq1_chord = chord[idx_chord][2];
 			delta1_chord = delta3_chord * (freq1_chord / freq3_chord);
 			phase1_chord = 0.f;
+
 			return;
-		}
+		} // eof CHORD
+		} // eof switch
 	}
 } INIT, *PINIT;
 
@@ -1142,3 +1148,11 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof switch
 	return (INT_PTR)FALSE;
 }
+//melody, is a collection of
+//chord (can be a single note)
+//has a duration
+//further aspects of sound
+//1) doppler effect
+//2) frequency modulation (FM)
+//3) attack, decay, sustain, release (ADSR)
+//4) tremelo/leslie
