@@ -14,4 +14,5 @@
 #include <memory.h>
 #include <tchar.h>
 
-#include <mmsystem.h>
+//#include <mmsystem.h>
+#include <mmeapi.h>
