@@ -1,3 +1,7 @@
+#define BUFFER_MAX				256
+
+#define IDC_START_AUDIO_CAPTURE		30100
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Audio_Capture_01-03-2023_v1.rc
