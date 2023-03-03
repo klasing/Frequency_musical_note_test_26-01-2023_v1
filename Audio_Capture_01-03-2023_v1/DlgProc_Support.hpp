@@ -17,6 +17,8 @@ LPWAVEHDR g_whin[MAX_BUFFERS];
 
 VOID* g_pRecordBuffer;
 
+WAVEFORMATEX g_wfx{};
+
 //****************************************************************************
 //*                     waveInProc
 //****************************************************************************
@@ -28,6 +30,8 @@ void CALLBACK waveInProc(HWAVEIN hwi
 )
 {
 	OutputDebugString(L"waveInProc()\n");
+	HRESULT hr = S_OK;
+	UINT nSizeWrote = 0;
 	switch (uMsg)
 	{
 	case WIM_OPEN:
@@ -38,8 +42,9 @@ void CALLBACK waveInProc(HWAVEIN hwi
 	case WIM_DATA:
 	{
 		OutputDebugString(L"WIM_DATA\n");
+		LPWAVEHDR lpWHDR = (LPWAVEHDR)dwParam1;
 		waveInAddBuffer(hwi
-			, (LPWAVEHDR)dwParam1
+			, lpWHDR
 			, sizeof(WAVEHDR)
 		);
 		break;
@@ -51,7 +56,74 @@ void CALLBACK waveInProc(HWAVEIN hwi
 	} // eof WIM_CLOSE
 	} // eof swich
 }
+/*
+// available at
+// https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee419050(v=vs.85)?redirectedfrom=MSDN
+HRESULT RecordCapturedData()
+	{
+	  HRESULT hr;
+	  VOID* pbCaptureData  = NULL;
+	  DWORD dwCaptureLength;
+	  VOID* pbCaptureData2 = NULL;
+	  DWORD dwCaptureLength2;
+	  VOID* pbPlayData   = NULL;
+	  UINT  dwDataWrote;
+	  DWORD dwReadPos;
+	  LONG lLockSize;
 
+	  if (NULL == g_pDSBCapture)
+		  return S_FALSE;
+	  if (NULL == g_pWaveFile)
+		  return S_FALSE;
+
+	  if (FAILED (hr = g_pDSBCapture->GetCurrentPosition(
+		NULL, &dwReadPos)))
+		  return hr;
+
+	  // Lock everything between the private cursor
+	  // and the read cursor, allowing for wraparound.
+
+	  lLockSize = dwReadPos - g_dwNextCaptureOffset;
+	  if( lLockSize < 0 ) lLockSize += g_dwCaptureBufferSize;
+
+	  if( lLockSize == 0 ) return S_FALSE;
+
+	  if (FAILED(hr = g_pDSBCapture->Lock(
+			g_dwNextCaptureOffset, lLockSize,
+			&pbCaptureData, &dwCaptureLength,
+			&pbCaptureData2, &dwCaptureLength2, 0L)))
+		return hr;
+
+	  // Write the data. This is done in two steps
+	  // to account for wraparound.
+
+	  if (FAILED( hr = g_pWaveFile->Write( dwCaptureLength,
+		  (BYTE*)pbCaptureData, &dwDataWrote)))
+		return hr;
+
+	  if (pbCaptureData2 != NULL)
+	  {
+		if (FAILED(hr = g_pWaveFile->Write(
+			dwCaptureLength2, (BYTE*)pbCaptureData2,
+			&dwDataWrote)))
+		  return hr;
+	  }
+
+	  // Unlock the capture buffer.
+
+	 g_pDSBCapture->Unlock( pbCaptureData, dwCaptureLength,
+		pbCaptureData2, dwCaptureLength2  );
+
+	  // Move the capture offset forward.
+
+	  g_dwNextCaptureOffset += dwCaptureLength;
+	  g_dwNextCaptureOffset %= g_dwCaptureBufferSize;
+	  g_dwNextCaptureOffset += dwCaptureLength2;
+	  g_dwNextCaptureOffset %= g_dwCaptureBufferSize;
+
+	  return S_OK;
+	}
+*/
 //*****************************************************************************
 //*                     start_audio_capture
 //*****************************************************************************
@@ -108,7 +180,6 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	UINT nMaxDevices = 0;
 	UINT nDevId = 0;
 	WAVEINCAPS wic{};
-	WAVEFORMATEX wfx{};
 
 	// open audio device
 	nMaxDevices = waveInGetNumDevs();
@@ -155,19 +226,19 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 
 			OutputDebugString(wszBuffer);
 
-			wfx.nChannels = 2;
-			wfx.nSamplesPerSec = 44'100;
-			wfx.wFormatTag = WAVE_FORMAT_PCM;
-			wfx.wBitsPerSample = 16;
-			wfx.nBlockAlign = wfx.nChannels * wfx.wBitsPerSample / 8;
-			wfx.cbSize = 0;
+			g_wfx.nChannels = 2;
+			g_wfx.nSamplesPerSec = 44'100;
+			g_wfx.wFormatTag = WAVE_FORMAT_PCM;
+			g_wfx.wBitsPerSample = 16;
+			g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
+			g_wfx.cbSize = 0;
 
 			if (nDevId == 1)
 			{
 				// open input device
 				rc = waveInOpen(&g_hwi
 					, nDevId
-					, &wfx
+					, &g_wfx
 					, (DWORD)(VOID*)waveInProc
 					, (DWORD)0
 					, CALLBACK_FUNCTION
@@ -191,11 +262,23 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	, const LPARAM& lParam
 )
 {
+	HRESULT hr = S_OK;
 	switch (LOWORD(wParam))
 	{
 	case IDC_START_AUDIO_CAPTURE:
 	{
 		OutputDebugString(L"IDC_START_AUDIO_CAPTURE\n");
+
+		// create .wav file
+		hr = openWaveFile((LPWSTR)L"wav_file.wav"
+			, &g_wfx
+			, WAVEFILE_WRITE
+		);
+		if (hr == S_OK)
+		{
+			OutputDebugString(L"openWaveFile() OK\n");
+		}
+
 		HWND hWnd = GetDlgItem(hDlg, IDC_START_AUDIO_CAPTURE);
 		SendMessage(hWnd
 			, WM_GETTEXT
@@ -229,6 +312,13 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 			{
 				OutputDebugString(L"waveInStop()\n");
 			}
+
+			// close .wav file
+			hr = closeWaveFile();
+			if (hr == S_OK)
+			{
+				OutputDebugString(L"closeWaveFile() OK\n");
+			}
 		}
 
 		return (INT_PTR)TRUE;
@@ -236,6 +326,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof switch
 	return (INT_PTR)FALSE;
 }
+
 
 // waste ///////////////////////////////////////////////////////////////////////
 ////****************************************************************************

@@ -30,6 +30,12 @@
     <ClInclude Include="DlgProc_Support.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SDKWaveFile.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WaveFile_Support.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Audio_Capture_01-03-2023_v1.cpp">

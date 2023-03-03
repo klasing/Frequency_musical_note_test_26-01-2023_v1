@@ -131,7 +131,9 @@
     <ClInclude Include="DlgProc_Support.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="SDKWaveFile.hpp" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="WaveFile_Support.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Audio_Capture_01-03-2023_v1.cpp" />

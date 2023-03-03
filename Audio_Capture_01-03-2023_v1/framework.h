@@ -20,3 +20,5 @@
 #include <objbase.h>
 #include <mmeapi.h>
 #include <mmreg.h>
+#include <mmiscapi.h>
+#include <winerror.h>
