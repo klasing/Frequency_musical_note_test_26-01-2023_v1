@@ -161,7 +161,7 @@ HRESULT openWaveFile(LPWSTR strFileName
     , DWORD dwFlags
 )
 {
-    HRESULT hr;
+    HRESULT hr = S_OK;
 
     g_dwFlags = dwFlags;
     g_bIsReadingFromMemory = FALSE;
