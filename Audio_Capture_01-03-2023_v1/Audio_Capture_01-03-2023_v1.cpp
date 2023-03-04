@@ -239,8 +239,8 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     } // eof WM_INITDIALOG
     case WM_SIZE:
     {
-//        onWmSize_DlgProc(hDlg
-//        );
+        onWmSize_DlgProc(hDlg
+        );
 
         return (INT_PTR)TRUE;
     } // eof WM_SIZE

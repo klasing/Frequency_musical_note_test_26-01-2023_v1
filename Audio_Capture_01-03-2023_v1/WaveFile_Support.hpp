@@ -21,6 +21,7 @@
 HMMIO g_hmmio = NULL;
 MMCKINFO g_ck;
 MMCKINFO g_ckRiff;
+DWORD g_dwSize;
 MMIOINFO g_mmioinfoOut;
 DWORD g_dwFlags;
 BOOL g_bIsReadingFromMemory;
@@ -145,6 +146,14 @@ HRESULT ResetFile()
 }
 
 //****************************************************************************
+//*                     getSize
+//****************************************************************************
+DWORD getSize()
+{
+	return g_dwSize;
+}
+
+//****************************************************************************
 //*                     openWaveFile
 //****************************************************************************
 HRESULT openWaveFile(LPWSTR strFileName
@@ -216,6 +225,8 @@ HRESULT writeWaveFile(UINT nSizeToWrite
 		(*pnSizeWrote)++;
 	}
 
+	OutputDebugString(L"bla\n");
+
 	return S_OK;
 }
 
@@ -231,8 +242,11 @@ HRESULT closeWaveFile()
 {
 	if (g_dwFlags == WAVEFILE_READ)
 	{
-		if (g_hmmio != NULL) mmioClose(g_hmmio, 0);
-		g_hmmio = NULL;
+		if (g_hmmio != NULL)
+		{
+			mmioClose(g_hmmio, 0);
+			g_hmmio = NULL;
+		}
 		SAFE_DELETE_ARRAY(g_pResourceBuffer);
 	}
 	else
@@ -277,5 +291,32 @@ HRESULT closeWaveFile()
 		g_hmmio = NULL;
 	}
 
+	OutputDebugString(L"bla\n");
+
 	return S_OK;
 }
+/*
+HRESULT CWaveFile::Close()
+{
+	if( m_dwFlags == WAVEFILE_READ )
+	{
+		if ( m_hmmio != NULL )
+		{
+			mmioClose( m_hmmio, 0 );
+			m_hmmio = NULL;
+		}
+		SAFE_DELETE_ARRAY( m_pResourceBuffer );
+	}
+	else
+	{
+
+
+
+
+
+
+	}
+
+	return S_OK;
+}
+*/
