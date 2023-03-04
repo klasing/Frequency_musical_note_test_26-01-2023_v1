@@ -181,7 +181,8 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 			OutputDebugString(wszBuffer);
 
 			g_wfx.nChannels = 2;
-			g_wfx.nSamplesPerSec = 44'100;
+			g_wfx.nSamplesPerSec = 48'000;// 44'100;
+			// does not work WAVE_FORMAT_IEEE_FLOAT
 			g_wfx.wFormatTag = WAVE_FORMAT_PCM;
 			g_wfx.wBitsPerSample = 16;
 			g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
