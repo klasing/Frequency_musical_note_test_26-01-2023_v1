@@ -189,12 +189,12 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 			g_wfx.nAvgBytesPerSec = g_wfx.nSamplesPerSec * g_wfx.nBlockAlign;
 			g_wfx.cbSize = 0;
 
-			// use microphone array, nDevId = 0
-			if (nDevId == 0)
-			// use stereo mix, when microphone is off, nDevId == 0
+			// depends on sound settings
+			// either one of the two is active
+			// 1) use microphone array, nDevId = 0
 			//if (nDevId == 0)
-			// use stereo mix, when microphone is on, nDevId == 1
-			//if (nDevId == 1)
+			// 2) use stereo mix, nDevId == 1
+			if (nDevId == 1)
 			{
 				// open input device
 				rc = waveInOpen(&g_hwi
