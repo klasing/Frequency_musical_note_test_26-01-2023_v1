@@ -48,11 +48,11 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="Audio_Capture_01-03-2023_v1.ico">
       <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="small.ico">
+      <Filter>Source Files</Filter>
     </Image>
   </ItemGroup>
 </Project>

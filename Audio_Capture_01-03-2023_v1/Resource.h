@@ -1,6 +1,7 @@
 #define BUFFER_MAX				256
 
 #define IDC_START_AUDIO_CAPTURE		30100
+#define IDC_PLAYBACK				30101
 
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
