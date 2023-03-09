@@ -60,6 +60,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
+        if (IsDialogMessage(g_hDlg, &msg))
+        {
+            continue;
+        }
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);
@@ -244,19 +248,40 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         return (INT_PTR)TRUE;
     } // eof WM_SIZE
+    case MM_WIM_OPEN:
+    {
+        OutputDebugString(L"MM_WIM_OPEN\n");
+        //onWimOpen_DlgProc();
+        return (INT_PTR)TRUE;
+    } // eof MM_WIM_OPEN
+    case MM_WIM_DATA:
+    {
+        OutputDebugString(L"MM_WIM_DATA\n");
+        //onWimData_DlgProc();
+        return (INT_PTR)TRUE;
+    } // eof MM_WIM_DATA
+    case MM_WIM_CLOSE:
+    {
+        OutputDebugString(L"MM_WIM_CLOSE\n");
+        //onWimClose_DlgProc();
+        return (INT_PTR)TRUE;
+    } // eof MM_WIM_CLOSE
     case MM_WOM_OPEN:
     {
         OutputDebugString(L"MM_WOM_OPEN\n");
+        //onWomOpen_DlgProc();
         return (INT_PTR)TRUE;
     } // eof MM_WOM_OPEN
     case MM_WOM_DONE:
     {
         OutputDebugString(L"MM_WOM_DONE\n");
+        //onWomDone_DlgProc();
         return (INT_PTR)TRUE;
     } // eof MM_WOM_DONE
     case MM_WOM_CLOSE:
     {
         OutputDebugString(L"MM_WOM_CLOSE\n");
+        //onWomClose_DlgProc();
         return (INT_PTR)TRUE;
     } // eof MM_WOM_CLOSE
     case WM_COMMAND:

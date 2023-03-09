@@ -129,6 +129,7 @@
   <ItemGroup>
     <ClInclude Include="Audio_Capture_01-03-2023_v1.h" />
     <ClInclude Include="DlgProc_Support.hpp" />
+    <ClInclude Include="DlgProc_Support_Ex.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SDKWaveFile.hpp" />
