@@ -177,11 +177,11 @@ BOOL start_playback()
 		rc = waveOutOpen(&g_hwo
 			, 0 // TODO: this has to be addressed
 			, &g_wfx
-			, (DWORD)g_hDlg
-			//, (DWORD)(VOID*)waveOutProc
+			//, (DWORD)g_hDlg
+			, (DWORD)(VOID*)waveOutProc
 			, (DWORD)0
-			, CALLBACK_WINDOW
-			//, CALLBACK_FUNCTION
+			//, CALLBACK_WINDOW
+			, CALLBACK_FUNCTION
 		);
 	}
 	/////////////////////////////////////////////
@@ -331,26 +331,26 @@ BOOL getAudioPlaybackCap()
 			);
 			OutputDebugString(wszBuffer);
 
-			//// use Speaker/Headphone, nDevId = 0
-			//if (nDevId == 0)
-			//{
-			//	// open output device
-			//	rc = waveOutOpen(&g_hwo
-			//		, nDevId
-			//		, &g_wfx
-			//		// does not work
-			//		//, (DWORD)g_hDlg
-			//		, (DWORD)(VOID*)waveOutProc
-			//		, (DWORD)0
-			//		// does not work
-			//		//, CALLBACK_WINDOW
-			//		, CALLBACK_FUNCTION
-			//	);
-			//	if (rc == MMSYSERR_NOERROR)
-			//	{
-			//		OutputDebugString(L"speakers are ready to play\n");
-			//	}
-			//}
+			// use Speaker/Headphone, nDevId = 0
+			if (nDevId == 0)
+			{
+				// open output device
+				rc = waveOutOpen(&g_hwo
+					, nDevId
+					, &g_wfx
+					// does not work, unless you adjust the message loop
+					//, (DWORD)g_hDlg
+					, (DWORD)(VOID*)waveOutProc
+					, (DWORD)0
+					// does not work, unless you adjust the message loop
+					//, CALLBACK_WINDOW
+					, CALLBACK_FUNCTION
+				);
+				if (rc == MMSYSERR_NOERROR)
+				{
+					OutputDebugString(L"speakers are ready to play\n");
+				}
+			}
 		}
 	}
 
