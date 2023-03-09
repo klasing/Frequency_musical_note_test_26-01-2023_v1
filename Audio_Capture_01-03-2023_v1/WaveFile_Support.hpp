@@ -333,7 +333,7 @@ HRESULT readWaveFile(BYTE* pBuffer
 		CopyMemory(pBuffer, g_pbDataCur, dwSizeToRead);
 #pragma warning(default: 22104)
 #pragma warning(default: 4616)
-		if (*pdwSizeRead != NULL)
+		if (pdwSizeRead != NULL)
 			*pdwSizeRead = dwSizeToRead;
 
 		return S_OK;
@@ -357,7 +357,7 @@ HRESULT readWaveFile(BYTE* pBuffer
 		if (cbDataIn > g_ck.cksize)
 			cbDataIn = g_ck.cksize;
 
-		g_ck.cksize = cbDataIn;
+		g_ck.cksize -= cbDataIn;
 
 		for (DWORD cT = 0; cT < cbDataIn; cT++)
 		{

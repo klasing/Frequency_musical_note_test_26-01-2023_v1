@@ -24,6 +24,10 @@ LPWAVEHDR g_whi[MAX_BUFFERS];
 UINT32 g_cBufferIn = 0;
 // audio playback
 HWAVEOUT g_hwo{};
+LPWAVEHDR g_who[MAX_BUFFERS];
+VOID* g_pPlaybackBuffer[MAX_BUFFERS];
+UINT g_cBufferOut = 0;
+UINT g_nBlock = 0;
 
 //****************************************************************************
 //*                     waveInProc
@@ -49,7 +53,6 @@ void CALLBACK waveInProc(HWAVEIN hwi
 	} // eof WIM_OPEN
 	case WIM_DATA:
 	{
-		OutputDebugString(L"WIM_DATA\n");
 		PostMessage(g_hDlg
 			, WM_COMMAND
 			, (WPARAM)uMsg
@@ -59,7 +62,6 @@ void CALLBACK waveInProc(HWAVEIN hwi
 	} // eof WIM_DATA
 	case WIM_CLOSE:
 	{
-		OutputDebugString(L"WIM_CLOSE\n");
 		PostMessage(g_hDlg
 			, WM_COMMAND
 			, (WPARAM)uMsg
@@ -138,7 +140,7 @@ BOOL start_audio_capture()
 	/////////////////////////////////////////////
 	for (int i = 0; i < MAX_BUFFERS; i++)
 	{
-		// allocate buffers
+		// allocate buffer
 		g_whi[i] = new WAVEHDR;
 		if (g_whi[i])
 		{
@@ -165,9 +167,33 @@ BOOL start_audio_capture()
 //*****************************************************************************
 BOOL start_playback()
 {
+	g_nBlock = getSizeWaveFile() / DATABLOCK_SIZE;
+
+	DWORD dwSizeRead = 0;
+
+	for (int i = 0; i < MAX_BUFFERS; i++)
+	{
+		g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
+		hr = readWaveFile((BYTE*)g_pPlaybackBuffer[i]
+			, DATABLOCK_SIZE
+			, &dwSizeRead
+		);
+
+		g_ck.dwDataOffset += dwSizeRead;
+
+		g_who[i] = new WAVEHDR;
+		g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
+		g_who[i]->dwBufferLength = DATABLOCK_SIZE;
+		g_who[i]->dwFlags = 0;
+		g_who[i]->dwLoops = 0;
+	}
+
+	waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
+	// start audio playback
+	rc = waveOutWrite(g_hwo, g_who[0], sizeof(WAVEHDR));
+
 	return EXIT_SUCCESS;
 }
-
 //*****************************************************************************
 //*                     getAdioCaptureCap
 //*****************************************************************************
@@ -297,8 +323,12 @@ BOOL getAudioPlaybackCap()
 				rc = waveOutOpen(&g_hwo
 					, nDevId
 					, &g_wfx
+					// does not work
+					//, (DWORD)g_hDlg
 					, (DWORD)(VOID*)waveOutProc
 					, (DWORD)0
+					// does not work
+					//, CALLBACK_WINDOW
 					, CALLBACK_FUNCTION
 				);
 				if (rc == MMSYSERR_NOERROR)
@@ -352,6 +382,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	, const LPARAM& lParam
 )
 {
+	DWORD dwSizeRead = 0;
 	switch (LOWORD(wParam))
 	{
 	case IDC_START_AUDIO_CAPTURE:
@@ -401,6 +432,11 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	{
 		OutputDebugString(L"IDC_PLAYBACK\n");
 
+		// open .wav file
+		hr = openWaveFile((LPWSTR)L"wav_file.wav"
+			, &g_wfx
+			, WAVEFILE_READ
+		);
 		// start playback
 		start_playback();
 
@@ -415,7 +451,6 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof WIM_OPEN
 	case WIM_DATA:
 	{
-		OutputDebugString(L"WIM_DATA\n");
 		UINT nSizeWrote = 0;
 		hr = writeWaveFile(g_whi[g_cBufferIn]->dwBufferLength
 			, (BYTE*)g_whi[g_cBufferIn]->lpData
@@ -436,9 +471,10 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof WIM_DATA
 	case WIM_CLOSE:
 	{
-		OutputDebugString(L"WIM_CLOSE\n");
+		// prevent click at the end of a capture
 		Sleep(2000);
 		hr = closeWaveFile();
+		// set variables to default
 		g_hwi = NULL;
 		g_whi[0] = NULL;
 		g_whi[1] = NULL;
@@ -452,6 +488,24 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof WOM_OPEN
 	case WOM_DONE:
 	{
+		if (g_ck.dwDataOffset >= getSizeWaveFile())
+		{
+			waveOutClose(g_hwo);
+			return (INT_PTR)TRUE;
+		}
+
+		hr = readWaveFile((BYTE*)g_pPlaybackBuffer[g_cBufferOut]
+			, DATABLOCK_SIZE
+			, &dwSizeRead
+		);
+		// advance to next data block in wave file
+		g_ck.dwDataOffset += dwSizeRead;
+		g_who[g_cBufferOut]->lpData = (LPSTR)g_pPlaybackBuffer[g_cBufferOut];
+
+		g_cBufferOut = ++g_cBufferOut % MAX_BUFFERS;
+		waveOutPrepareHeader(g_hwo, g_who[g_cBufferOut], sizeof(WAVEHDR));
+		waveOutWrite(g_hwo, g_who[g_cBufferOut], sizeof(WAVEHDR));
+
 		return (INT_PTR)TRUE;
 	} // eof WOM_DONE
 	case WOM_CLOSE:
@@ -463,6 +517,117 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	return (INT_PTR)FALSE;
 }
 
+/*
+// Global variables.
+
+HANDLE hData  = NULL;  // handle of waveform data memory
+HPSTR  lpData = NULL;  // pointer to waveform data memory
+
+void WriteWaveData(void)
+{
+	HWAVEOUT    hWaveOut;
+	HGLOBAL     hWaveHdr;
+	LPWAVEHDR   lpWaveHdr;
+	HMMIO       hmmio;
+	UINT        wResult;
+	HANDLE      hFormat;
+	WAVEFORMAT  *pFormat;
+	DWORD       dwDataSize;
+
+	// Open a waveform device for output using window callback.
+
+	if (waveOutOpen((LPHWAVEOUT)&hWaveOut, WAVE_MAPPER,
+					(LPWAVEFORMAT)pFormat,
+					(LONG)hwndApp, 0L, CALLBACK_WINDOW))
+	{
+		MessageBox(hwndApp,
+				   "Failed to open waveform output device.",
+				   NULL, MB_OK | MB_ICONEXCLAMATION);
+		LocalUnlock(hFormat);
+		LocalFree(hFormat);
+		mmioClose(hmmio, 0);
+		return;
+	}
+
+	// Allocate and lock memory for the waveform data.
+
+	hData = GlobalAlloc(GMEM_MOVEABLE | GMEM_SHARE, dwDataSize );
+	if (!hData)
+	{
+		MessageBox(hwndApp, "Out of memory.",
+				   NULL, MB_OK | MB_ICONEXCLAMATION);
+		mmioClose(hmmio, 0);
+		return;
+	}
+	if ((lpData = GlobalLock(hData)) == NULL)
+	{
+		MessageBox(hwndApp, "Failed to lock memory for data chunk.",
+				   NULL, MB_OK | MB_ICONEXCLAMATION);
+		GlobalFree(hData);
+		mmioClose(hmmio, 0);
+		return;
+	}
+
+	// Read the waveform data subchunk.
+
+	if(mmioRead(hmmio, (HPSTR) lpData, dwDataSize) != (LRESULT)dwDataSize)
+	{
+		MessageBox(hwndApp, "Failed to read data chunk.",
+				   NULL, MB_OK | MB_ICONEXCLAMATION);
+		GlobalUnlock(hData);
+		GlobalFree(hData);
+		mmioClose(hmmio, 0);
+		return;
+	}
+
+	// Allocate and lock memory for the header.
+
+	hWaveHdr = GlobalAlloc(GMEM_MOVEABLE | GMEM_SHARE,
+		(DWORD) sizeof(WAVEHDR));
+	if (hWaveHdr == NULL)
+	{
+		GlobalUnlock(hData);
+		GlobalFree(hData);
+		MessageBox(hwndApp, "Not enough memory for header.",
+			NULL, MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	lpWaveHdr = (LPWAVEHDR) GlobalLock(hWaveHdr);
+	if (lpWaveHdr == NULL)
+	{
+		GlobalUnlock(hData);
+		GlobalFree(hData);
+		MessageBox(hwndApp,
+			"Failed to lock memory for header.",
+			NULL, MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+
+	// After allocation, set up and prepare header.
+
+	lpWaveHdr->lpData = lpData;
+	lpWaveHdr->dwBufferLength = dwDataSize;
+	lpWaveHdr->dwFlags = 0L;
+	lpWaveHdr->dwLoops = 0L;
+	waveOutPrepareHeader(hWaveOut, lpWaveHdr, sizeof(WAVEHDR));
+
+	// Now the data block can be sent to the output device. The
+	// waveOutWrite function returns immediately and waveform
+	// data is sent to the output device in the background.
+
+	wResult = waveOutWrite(hWaveOut, lpWaveHdr, sizeof(WAVEHDR));
+	if (wResult != 0)
+	{
+		waveOutUnprepareHeader(hWaveOut, lpWaveHdr,
+							   sizeof(WAVEHDR));
+		GlobalUnlock( hData);
+		GlobalFree(hData);
+		MessageBox(hwndApp, "Failed to write block to device",
+				   NULL, MB_OK | MB_ICONEXCLAMATION);
+		return;
+	}
+}*/
 // waste /////////////////////////////////////////////////////////////////////
 /*
 //****************************************************************************

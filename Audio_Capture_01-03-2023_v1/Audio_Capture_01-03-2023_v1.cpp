@@ -244,6 +244,21 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         return (INT_PTR)TRUE;
     } // eof WM_SIZE
+    case MM_WOM_OPEN:
+    {
+        OutputDebugString(L"MM_WOM_OPEN\n");
+        return (INT_PTR)TRUE;
+    } // eof MM_WOM_OPEN
+    case MM_WOM_DONE:
+    {
+        OutputDebugString(L"MM_WOM_DONE\n");
+        return (INT_PTR)TRUE;
+    } // eof MM_WOM_DONE
+    case MM_WOM_CLOSE:
+    {
+        OutputDebugString(L"MM_WOM_CLOSE\n");
+        return (INT_PTR)TRUE;
+    } // eof MM_WOM_CLOSE
     case WM_COMMAND:
     {
         onWmCommand_DlgProc(hDlg
