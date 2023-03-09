@@ -27,7 +27,7 @@ HWAVEOUT g_hwo{};
 LPWAVEHDR g_who[MAX_BUFFERS];
 VOID* g_pPlaybackBuffer[MAX_BUFFERS];
 UINT g_cBufferOut = 0;
-UINT g_nBlock = 0;
+//UINT g_nBlock = 0;
 
 //****************************************************************************
 //*                     waveInProc
@@ -167,9 +167,22 @@ BOOL start_audio_capture()
 //*****************************************************************************
 BOOL start_playback()
 {
-	g_nBlock = getSizeWaveFile() / DATABLOCK_SIZE;
-
+	//g_nBlock = getSizeWaveFile() / DATABLOCK_SIZE;
 	DWORD dwSizeRead = 0;
+
+	/////////////////////////////////////////////
+	// make sure the device handle is not invalid
+	if (g_hwo == NULL)
+	{
+		rc = waveOutOpen(&g_hwo
+			, 0 // TODO: this has to be addressed
+			, &g_wfx
+			, (DWORD)(VOID*)waveOutProc
+			, (DWORD)0
+			, CALLBACK_FUNCTION
+		);
+	}
+	/////////////////////////////////////////////
 
 	for (int i = 0; i < MAX_BUFFERS; i++)
 	{
@@ -188,7 +201,7 @@ BOOL start_playback()
 		g_who[i]->dwLoops = 0;
 	}
 
-	waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
+	rc = waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
 	// start audio playback
 	rc = waveOutWrite(g_hwo, g_who[0], sizeof(WAVEHDR));
 
@@ -351,7 +364,8 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 {
 	// initialize waveformat
 	g_wfx.nChannels = 2;
-	g_wfx.nSamplesPerSec = 48'000;
+	// 44.100 samples gives a slightly better result
+	g_wfx.nSamplesPerSec = 44'100;// 48'000;
 	g_wfx.wFormatTag = WAVE_FORMAT_PCM;
 	g_wfx.wBitsPerSample = 16;
 	g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
@@ -494,6 +508,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 			return (INT_PTR)TRUE;
 		}
 
+		waveOutUnprepareHeader(g_hwo, g_who[g_cBufferOut], sizeof(WAVEHDR));
 		hr = readWaveFile((BYTE*)g_pPlaybackBuffer[g_cBufferOut]
 			, DATABLOCK_SIZE
 			, &dwSizeRead
@@ -510,6 +525,11 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	} // eof WOM_DONE
 	case WOM_CLOSE:
 	{
+		hr = closeWaveFile();
+		// set variables to default
+		g_hwo = NULL;
+		g_who[0] = NULL;
+		g_who[1] = NULL;
 		return (INT_PTR)TRUE;
 	} // eof WOM_CLOSE
 	} // eof switch
