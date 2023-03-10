@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Mixer_Fmnt_26-01-2023_v1", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Audio_Capture_01-03-2023_v1", "Audio_Capture_01-03-2023_v1\Audio_Capture_01-03-2023_v1.vcxproj", "{1564A4EF-79B5-4CD3-8BA9-134D395813E3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Audio_Capture_01-03-2023_v2", "Audio_Capture_01-03-2023_v2\Audio_Capture_01-03-2023_v2.vcxproj", "{06B8B97B-F227-4788-9411-7BE589064A9A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -61,6 +63,14 @@ Global
 		{1564A4EF-79B5-4CD3-8BA9-134D395813E3}.Release|x64.Build.0 = Release|x64
 		{1564A4EF-79B5-4CD3-8BA9-134D395813E3}.Release|x86.ActiveCfg = Release|Win32
 		{1564A4EF-79B5-4CD3-8BA9-134D395813E3}.Release|x86.Build.0 = Release|Win32
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Debug|x64.ActiveCfg = Debug|x64
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Debug|x64.Build.0 = Debug|x64
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Debug|x86.ActiveCfg = Debug|Win32
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Debug|x86.Build.0 = Debug|Win32
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Release|x64.ActiveCfg = Release|x64
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Release|x64.Build.0 = Release|x64
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Release|x86.ActiveCfg = Release|Win32
+		{06B8B97B-F227-4788-9411-7BE589064A9A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
