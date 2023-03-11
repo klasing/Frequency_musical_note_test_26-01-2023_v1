@@ -8,9 +8,6 @@
 //****************************************************************************
 //*                     define
 //****************************************************************************
-#define WAVEFILE_READ	1
-#define WAVEFILE_WRITE	2
-
 #define SAFE_DELETE(p)       { if (p) { delete (p); (p)=NULL; } }
 #define SAFE_DELETE_ARRAY(p) { if (p) { delete[](p); (p)=NULL; } }
 #define DXTRACE_ERR(str,hr) (hr)
@@ -27,18 +24,19 @@ HRESULT writeMMIO(WAVEFORMATEX* pwfxDest);
 //****************************************************************************
 //*                     global
 //****************************************************************************
-//MMRESULT rc = MMSYSERR_NOERROR;
+MMRESULT rc = MMSYSERR_NOERROR;
+HRESULT hr = S_OK;
 WAVEFORMATEX* g_pwfx = NULL;
 HMMIO g_hmmio = NULL;
-MMCKINFO g_ck;
-MMCKINFO g_ckRiff;
+MMCKINFO g_ck{};
+MMCKINFO g_ckRiff{};
 DWORD g_dwSize = 0;
-MMIOINFO g_mmioinfoOut;
-DWORD g_dwFlags;
+MMIOINFO g_mmioinfoOut{};
+DWORD g_dwFlags = 0;
 BOOL g_bIsReadingFromMemory = FALSE;
-BYTE* g_pbData;
-BYTE* g_pbDataCur;
-ULONG g_ulDataSize;
+BYTE* g_pbData = NULL;
+BYTE* g_pbDataCur = NULL;
+ULONG g_ulDataSize = NULL;
 CHAR* g_pResourceBuffer = NULL;
 
 //****************************************************************************

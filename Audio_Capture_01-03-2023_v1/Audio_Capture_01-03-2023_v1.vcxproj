@@ -132,6 +132,7 @@
     <ClInclude Include="DlgProc_Support_Ex.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="Ring_Buffer.hpp" />
     <ClInclude Include="SDKWaveFile.hpp" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="WaveFile_Support.hpp" />

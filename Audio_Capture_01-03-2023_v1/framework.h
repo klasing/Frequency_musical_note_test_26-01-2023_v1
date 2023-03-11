@@ -10,6 +10,7 @@
 #include <windows.h>
 // an easy way to add the library
 #pragma comment(lib, "Winmm.lib")
+#pragma comment(lib, "onecore.lib")
 // C RunTime Header Files
 #include <stdlib.h>
 #include <malloc.h>
@@ -22,3 +23,6 @@
 #include <mmreg.h>
 #include <mmiscapi.h>
 #include <winerror.h>
+#include <WinUser.h>
+#include <memoryapi.h>
+#include <errhandlingapi.h>

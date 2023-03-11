@@ -1,4 +1,20 @@
-#define BUFFER_MAX				256
+#define BUFFER_MAX					256
+
+// depends on sound settings
+// either one of the two is active
+// 1) use microphone array
+#define MICROPHONE_ARRAY			0
+// 2) use stereo mix
+#define STEREO_MIX					1
+// use Speaker/Headphone
+#define SPEAKER_HEADPHONE			0
+
+#define WAVEFILE_READ				1
+#define WAVEFILE_WRITE				2
+
+#define DATABLOCK_SIZE				8192 // (bytes)
+#define MAX_BUFFERS					2
+#define PLAY_MAX_BUFFERS			256
 
 #define IDC_START_AUDIO_CAPTURE		30100
 #define IDC_PLAYBACK				30101
