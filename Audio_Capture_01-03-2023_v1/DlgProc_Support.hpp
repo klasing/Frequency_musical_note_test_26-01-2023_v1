@@ -90,57 +90,58 @@ BOOL start_audio_capture()
 BOOL start_audio_playback()
 {
 	OutputDebugString(L"start_audio_playback()\n");
-	// start thread feeder_playback
-	hFeederPlayback = CreateThread(NULL
-		, 0
-		, feeder_playback
-		, (LPVOID)nullptr
-		, 0 // run immediately
-		, &g_dwFeederPlaybackId
-	);
+	createMapping((const PWCHAR)L"wav_file.wav");
+	//// start thread feeder_playback
+	//hFeederPlayback = CreateThread(NULL
+	//	, 0
+	//	, feeder_playback
+	//	, (LPVOID)nullptr
+	//	, 0 // run immediately
+	//	, &g_dwFeederPlaybackId
+	//);
 
-	rc = waveOutOpen(&g_hwo
-		, SPEAKER_HEADPHONE
-		, &g_wfx
-		, (DWORD)g_dwFeederPlaybackId
-		, (DWORD)0
-		, CALLBACK_THREAD
-	);
-	// open .wav file
-	openWaveFile((const LPWSTR)L"wav_file.wav"
-		, &g_wfx
-		, WAVEFILE_READ
-	);
+	//rc = waveOutOpen(&g_hwo
+	//	, SPEAKER_HEADPHONE
+	//	, &g_wfx
+	//	, (DWORD)g_dwFeederPlaybackId
+	//	, (DWORD)0
+	//	, CALLBACK_THREAD
+	//);
+	//// open .wav file
+	//openWaveFile((const LPWSTR)L"wav_file.wav"
+	//	, &g_wfx
+	//	, WAVEFILE_READ
+	//);
 
-	g_dwSizeWaveFile = getSizeWaveFile();
-	g_nBlock = ((g_dwSizeWaveFile / DATABLOCK_SIZE) > PLAY_MAX_BUFFERS) ?
-		PLAY_MAX_BUFFERS :
-		g_dwSizeWaveFile / DATABLOCK_SIZE;
+	//g_dwSizeWaveFile = getSizeWaveFile();
+	//g_nBlock = ((g_dwSizeWaveFile / DATABLOCK_SIZE) > PLAY_MAX_BUFFERS) ?
+	//	PLAY_MAX_BUFFERS :
+	//	g_dwSizeWaveFile / DATABLOCK_SIZE;
 
-	for (int i = 0; i < g_nBlock; i++)
-	{
-		g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
-		hr = readWaveFile((BYTE*)g_pPlaybackBuffer[i]
-			, DATABLOCK_SIZE
-			, &g_dwSizeRead
-		);
+	//for (int i = 0; i < g_nBlock; i++)
+	//{
+	//	g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
+	//	hr = readWaveFile((BYTE*)g_pPlaybackBuffer[i]
+	//		, DATABLOCK_SIZE
+	//		, &g_dwSizeRead
+	//	);
 
-		g_ck.dwDataOffset += g_dwSizeRead;
+	//	g_ck.dwDataOffset += g_dwSizeRead;
 
-		g_who[i] = new WAVEHDR;
-		g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
-		g_who[i]->dwBufferLength = DATABLOCK_SIZE;
-		g_who[i]->dwFlags = 0;
-		g_who[i]->dwLoops = 0;
+	//	g_who[i] = new WAVEHDR;
+	//	g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
+	//	g_who[i]->dwBufferLength = DATABLOCK_SIZE;
+	//	g_who[i]->dwFlags = 0;
+	//	g_who[i]->dwLoops = 0;
 
-		waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
-	}
+	//	waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
+	//}
 
-	g_cBufferOut = 0;
-	while (g_cBufferOut < g_nBlock)
-	{
-		waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
-	}
+	//g_cBufferOut = 0;
+	//while (g_cBufferOut < g_nBlock)
+	//{
+	//	waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
+	//}
 	return EXIT_SUCCESS;
 }
 
@@ -151,28 +152,8 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	, const HWND& hDlg
 )
 {
-	BYTE* ringBuffer = nullptr;
-	VOID* secondaryView = nullptr;
-	ringBuffer = (BYTE*)createRingBuffer(0x10000, &secondaryView);
-
-	// test the scenario
-	// 1) the ringbuffer was fully filled
-	// 2) the producer has filled the first chunk a second time
-	// 3) the consumer wraps around, and reads the first chunk
-	// - the consumer now runs after the producer, so
-	//   the producer is the head and the consumer is the tail
-	// - when the producer wraps around, it will no longer be the head
-	BOOL bProducerIsHead = TRUE;
-	UINT32 iProducer = 0;
-	UINT32 iConsumer = 0;
-	ringBuffer[iProducer++] = 'a';
-	BYTE b = ringBuffer[iConsumer];
-
-	UnmapViewOfFile(ringBuffer);
-	UnmapViewOfFile(secondaryView);
-	ringBuffer = nullptr;
-	secondaryView = nullptr;
-
+	// ringbuffer, not used any further
+	//test_ringbuffer();
 	// initialize waveformat
 	g_wfx.nChannels = 2;
 	// 44.100 samples/s

@@ -149,3 +149,34 @@ Exit:
 
     return ringBuffer;
 }
+
+//*****************************************************************************
+//*                     test_ringbuffer
+//*****************************************************************************
+BOOL test_ringbuffer()
+{
+    BYTE* ringBuffer = nullptr;
+    VOID* secondaryView = nullptr;
+    // 0x10000 = 65536 bytes (the allocation granularity)
+    ringBuffer = (BYTE*)createRingBuffer(0x10000, &secondaryView);
+
+    // test the scenario
+    // 1) the ringbuffer was fully filled
+    // 2) the producer has filled the first chunk a second time
+    // 3) the consumer wraps around, and reads the first chunk
+    // - the consumer now runs after the producer, so
+    //   the producer is the head and the consumer is the tail
+    // - when the producer wraps around, it will no longer be the head
+    BOOL bProducerIsHead = TRUE;
+    UINT32 iProducer = 0;
+    UINT32 iConsumer = 0;
+    ringBuffer[iProducer++] = 'a';
+    BYTE b = ringBuffer[iConsumer];
+
+    UnmapViewOfFile(ringBuffer);
+    UnmapViewOfFile(secondaryView);
+    ringBuffer = nullptr;
+    secondaryView = nullptr;
+
+    return EXIT_SUCCESS;
+}
