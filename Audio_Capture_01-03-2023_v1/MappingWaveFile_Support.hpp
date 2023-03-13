@@ -21,6 +21,15 @@ BOOL createMapping(const PWCHAR wszFileName)
 	if (hFile == INVALID_HANDLE_VALUE) 
 		return EXIT_FAILURE;
 	// 2) create mapping
+	HANDLE hFileMapping = CreateFileMapping(hFile
+		, NULL
+		, PAGE_READONLY
+		, 0
+		, pow(2, 32) // 4 Gb
+		, NULL
+	);
+	if (hFileMapping == INVALID_HANDLE_VALUE)
+		return EXIT_FAILURE;
 	// 3) create view
 	return EXIT_SUCCESS;
 }

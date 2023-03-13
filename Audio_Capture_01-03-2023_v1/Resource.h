@@ -14,7 +14,7 @@
 
 #define DATABLOCK_SIZE				8192 // (bytes)
 #define MAX_BUFFERS					2
-#define PLAY_MAX_BUFFERS			256
+#define PLAY_MAX_BUFFERS			525000//256
 
 #define IDC_START_AUDIO_CAPTURE		30100
 #define IDC_PLAYBACK				30101

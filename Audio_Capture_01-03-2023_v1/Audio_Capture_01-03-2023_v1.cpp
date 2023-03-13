@@ -248,24 +248,6 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         return (INT_PTR)TRUE;
     } // eof WM_SIZE
-    case MM_WIM_OPEN:
-    {
-        OutputDebugString(L"MM_WIM_OPEN\n");
-        onWimOpen_DlgProc();
-        return (INT_PTR)TRUE;
-    } // eof MM_WIM_OPEN
-    case MM_WIM_DATA:
-    {
-        OutputDebugString(L"MM_WIM_DATA\n");
-        onWimData_DlgProc();
-        return (INT_PTR)TRUE;
-    } // eof MM_WIM_DATA
-    case MM_WIM_CLOSE:
-    {
-        OutputDebugString(L"MM_WIM_CLOSE\n");
-        onWimClose_DlgProc();
-        return (INT_PTR)TRUE;
-    } // eof MM_WIM_CLOSE
     case WM_COMMAND:
     {
         onWmCommand_DlgProc(hDlg
