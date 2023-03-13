@@ -36,15 +36,6 @@
     <ClInclude Include="WaveFile_Support.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DlgProc_Support_Ex.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Ring_Buffer.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MappingWaveFile_Support.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Audio_Capture_01-03-2023_v1.cpp">
