@@ -18,6 +18,12 @@
 
 #define IDC_START_AUDIO_CAPTURE		30100
 #define IDC_PLAYBACK				30101
+#define IDC_PAUSE					30102
+#define IDC_LVOLUME					30103
+#define IDC_RVOLUME					30104
+
+#define IDC_RESET					30200
+#define IDC_RESTART					30201
 
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.

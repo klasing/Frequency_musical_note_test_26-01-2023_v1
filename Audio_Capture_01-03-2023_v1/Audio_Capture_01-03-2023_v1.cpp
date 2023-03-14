@@ -248,6 +248,17 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         return (INT_PTR)TRUE;
     } // eof WM_SIZE
+    case WM_HSCROLL:
+    {
+        onWmHscroll_DlgProc(hDlg
+            , wParam
+            , lParam
+        );
+
+        // this break is vital, otherwise a WM_HSCROLL falls
+        // through into the underlying message handler!
+        break;
+    } // eof WM_HSCROLL
     case WM_COMMAND:
     {
         onWmCommand_DlgProc(hDlg

@@ -1,5 +1,16 @@
 #pragma once
 //*****************************************************************************
+//*                     note
+//*
+//* TODO:
+//* waveOutReset function
+//* waveOutPause/waveOutRestart function
+//* waveOutSetPitch function
+//* waveOutSetPlaybackRate function
+//* waveOutSetVolume function
+//*****************************************************************************
+
+//*****************************************************************************
 //*                     include
 //*****************************************************************************
 #include "framework.h"
@@ -210,6 +221,27 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			// let this thread die
 			return 0;
 		} // eof MM_WOM_CLOSE
+		case IDC_RESET:
+		{
+			OutputDebugString(L"audio_playback IDC_RESET\n");
+			// close wave out, triggers a MM_WOM_CLOSE message
+			waveOutReset(g_hwo);
+			break;
+		} // eof IDC_PLAYBACK
+		case IDC_PAUSE:
+		{
+			OutputDebugString(L"audio_playback IDC_PAUSE\n");
+			// pause wave out
+			waveOutPause(g_hwo);
+			break;
+		} // eof IDC_PAUSE
+		case IDC_RESTART:
+		{
+			OutputDebugString(L"audio_playback IDC_RESTART\n");
+			// continue wave out, after a pause
+			waveOutRestart(g_hwo);
+			break;
+		} // eof IDC_RESTART
 		} // eof switch
 	}
 
@@ -253,8 +285,9 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 
 	// initialize waveformat
 	g_wfx.nChannels = 2;
-	g_wfx.nSamplesPerSec = 44'100;
-	//g_wfx.nSamplesPerSec = 48'000;
+	// make compatible with project Mixer_Fmnt_26-01-2023_v1
+	g_wfx.nSamplesPerSec = 48'000;
+	//g_wfx.nSamplesPerSec = 44'100;
 	g_wfx.wFormatTag = WAVE_FORMAT_PCM;
 	g_wfx.wBitsPerSample = 16;
 	g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
@@ -275,6 +308,61 @@ BOOL onWmSize_DlgProc(const HWND& hDlg
 }
 
 //*****************************************************************************
+//*                     onWmHscroll_DlgProc
+//*****************************************************************************
+INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
+	, const WPARAM& wParam
+	, const LPARAM& lParam
+)
+{
+	int track_pos = 0;
+	switch (LOWORD(wParam))
+	{
+	case TB_LINEDOWN:
+	case TB_LINEUP:
+	case TB_THUMBTRACK:
+	{
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d\n"
+				, L"IDC_LVOLUME"
+				, track_pos
+			);
+			OutputDebugString(wszBuffer);
+
+			return (INT_PTR)TRUE;
+		} 
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0);
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d\n"
+				, L"IDC_RVOLUME"
+				, track_pos
+			);
+			OutputDebugString(wszBuffer);
+
+			return (INT_PTR)TRUE;
+		}
+	} // eof TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK
+	} // eof switch
+	
+	return (INT_PTR)FALSE;
+}
+
+//*****************************************************************************
 //*                     onWmCommand_DlgProc
 //*****************************************************************************
 INT_PTR onWmCommand_DlgProc(const HWND& hDlg
@@ -282,12 +370,13 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	, const LPARAM& lParam
 )
 {
+	HWND hWnd = NULL;
 	switch (LOWORD(wParam))
 	{
 	case IDC_START_AUDIO_CAPTURE:
 	{
 		OutputDebugString(L"IDC_START_AUDIO_CAPTURE\n");
-		HWND hWnd = GetDlgItem(hDlg, IDC_START_AUDIO_CAPTURE);
+		hWnd = GetDlgItem(hDlg, IDC_START_AUDIO_CAPTURE);
 		SendMessage(hWnd
 			, WM_GETTEXT
 			, (WPARAM)BUFFER_MAX
@@ -319,9 +408,80 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	case IDC_PLAYBACK:
 	{
 		OutputDebugString(L"IDC_PLAYBACK\n");
-		start_audio_playback();
+		hWnd = GetDlgItem(hDlg, IDC_PLAYBACK);
+		SendMessage(hWnd
+			, WM_GETTEXT
+			, (WPARAM)BUFFER_MAX
+			, (LPARAM)wszBuffer
+		);
+		if (wcscmp(wszBuffer, L"Start") == 0)
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Reset"
+			);
+			start_audio_playback();
+		}
+		else
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Start"
+			);
+			// force audio playback to reset
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_RESET
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+		}
 		return (INT_PTR)TRUE;
 	} // eof IDC_PLAYBACK
+	case IDC_PAUSE:
+	{
+		OutputDebugString(L"IDC_PAUSE\n");
+		hWnd = GetDlgItem(hDlg, IDC_PAUSE);
+		SendMessage(hWnd
+			, WM_GETTEXT
+			, (WPARAM)BUFFER_MAX
+			, (LPARAM)wszBuffer
+		);
+		if (wcscmp(wszBuffer, L"Pause") == 0)
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Restart"
+			);
+			// send audio playback a message to pause
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_PAUSE
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+		}
+		else
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Pause"
+			);
+			// send audio playback a message to restart
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_RESTART
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+		}
+		return (INT_PTR)TRUE;
+	} // eof IDC_PAUSE
 	} // eof switch
 	
 	return (INT_PTR)FALSE;

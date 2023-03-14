@@ -8,6 +8,9 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files
 #include <windows.h>
+
+#include <CommCtrl.h>
+
 // an easy way to add the library
 #pragma comment(lib, "Winmm.lib")
 // C RunTime Header Files
