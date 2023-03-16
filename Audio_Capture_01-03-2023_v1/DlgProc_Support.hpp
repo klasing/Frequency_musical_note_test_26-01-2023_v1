@@ -38,7 +38,7 @@ DWORD g_nBlock = 0;
 DWORD g_cBufferOut = 0;
 VOID* g_pPlaybackBuffer[PLAY_MAX_BUFFERS]{};
 DWORD g_dwSizeRead = 0;
-
+DWORD g_dwVolume = 0;
 //*****************************************************************************
 //*                     audio_capture
 //*****************************************************************************
@@ -242,6 +242,22 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			waveOutRestart(g_hwo);
 			break;
 		} // eof IDC_RESTART
+		case IDC_LVOLUME:
+		{
+			OutputDebugString(L"audio_playback IDC_LVOLUME\n");
+			waveOutSetVolume(g_hwo
+				, MAKELPARAM(msg.lParam, msg.wParam)
+			);
+			break;
+		} // eof IDC_LVOLUME
+		case IDC_RVOLUME:
+		{
+			OutputDebugString(L"audio_playback IDC_RVOLUME\n");
+			waveOutSetVolume(g_hwo
+				, MAKELPARAM(msg.lParam, msg.wParam)
+			);
+			break;
+		} // eof IDC_RVOLUME
 		} // eof switch
 	}
 
@@ -270,7 +286,19 @@ BOOL start_audio_playback()
 		, (DWORD)0
 		, CALLBACK_THREAD
 	);
-
+	// set max. volume left and right 
+	waveOutSetVolume(g_hwo, 0xFFFF'FFFF);
+	// adjust slider to max. value
+	SendMessage(GetDlgItem(g_hDlg, IDC_LVOLUME)
+		, TBM_SETPOS
+		, (WPARAM)TRUE
+		, (LPARAM)100
+	);
+	SendMessage(GetDlgItem(g_hDlg, IDC_RVOLUME)
+		, TBM_SETPOS
+		, (WPARAM)TRUE
+		, (LPARAM)100
+	);
 	return EXIT_SUCCESS;
 }
 
@@ -327,7 +355,8 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME)
 				, TBM_GETPOS
 				, (WPARAM)0
-				, (LPARAM)0);
+				, (LPARAM)0
+			);
 
 			swprintf_s(wszBuffer
 				, (size_t)BUFFER_MAX
@@ -337,6 +366,14 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 			);
 			OutputDebugString(wszBuffer);
 
+			DWORD dwVolume = 0;
+			waveOutGetVolume(g_hwo, &dwVolume);
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_LVOLUME
+				, (WPARAM)(dwVolume & 0xFFFF'0000) >> 16
+				, (LPARAM)((FLOAT)track_pos / 100.f * 0xFFFF)
+			);
+
 			return (INT_PTR)TRUE;
 		} 
 		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME))
@@ -344,7 +381,8 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 			track_pos = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME)
 				, TBM_GETPOS
 				, (WPARAM)0
-				, (LPARAM)0);
+				, (LPARAM)0
+			);
 
 			swprintf_s(wszBuffer
 				, (size_t)BUFFER_MAX
@@ -353,6 +391,14 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 				, track_pos
 			);
 			OutputDebugString(wszBuffer);
+
+			DWORD dwVolume = 0;
+			waveOutGetVolume(g_hwo, &dwVolume);
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_RVOLUME
+				, (WPARAM)((FLOAT)track_pos / 100.f * 0xFFFF)
+				, (LPARAM)dwVolume & 0x0000'FFFF
+			);
 
 			return (INT_PTR)TRUE;
 		}

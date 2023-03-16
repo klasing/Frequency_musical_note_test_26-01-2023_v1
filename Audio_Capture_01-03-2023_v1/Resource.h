@@ -19,8 +19,10 @@
 #define IDC_START_AUDIO_CAPTURE		30100
 #define IDC_PLAYBACK				30101
 #define IDC_PAUSE					30102
-#define IDC_LVOLUME					30103
-#define IDC_RVOLUME					30104
+#define IDC_PITCH					30103
+#define IDC_PLAYRATE				30104
+#define IDC_LVOLUME					30105
+#define IDC_RVOLUME					30106
 
 #define IDC_RESET					30200
 #define IDC_RESTART					30201

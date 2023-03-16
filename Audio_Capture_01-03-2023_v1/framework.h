@@ -25,3 +25,4 @@
 #include <mmreg.h>
 #include <mmiscapi.h>
 #include <winerror.h>
+#include <WinUser.h>
