@@ -242,6 +242,22 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			waveOutRestart(g_hwo);
 			break;
 		} // eof IDC_RESTART
+		case IDC_PITCH:
+		{
+			OutputDebugString(L"audio_playback IDC_PITCH\n");
+			waveOutSetPitch(g_hwo
+				, MAKELPARAM(0, 0xF)
+			);
+			break;
+		} // eof IDC_PITCH
+		case IDC_PLAYRATE:
+		{
+			OutputDebugString(L"audio_playback IDC_PLAYRATE\n");
+			waveOutSetPlaybackRate(g_hwo
+				, MAKELPARAM(0, 0xF)
+			);
+			break;
+		} // eof IDC_PLAYRATE
 		case IDC_LVOLUME:
 		{
 			OutputDebugString(L"audio_playback IDC_LVOLUME\n");
@@ -286,6 +302,19 @@ BOOL start_audio_playback()
 		, (DWORD)0
 		, CALLBACK_THREAD
 	);
+	// get the device capabilities
+	WAVEOUTCAPS woc{};
+	waveOutGetDevCaps((UINT_PTR)g_hwo
+		, &woc
+		, sizeof(woc)
+	);
+	(woc.dwSupport & WAVECAPS_PITCH) ?
+		OutputDebugString(L"support WAVECAPS_PITCH\n") :
+		OutputDebugString(L"no support WAVECAPS_PITCH\n");
+	(woc.dwSupport & WAVECAPS_PLAYBACKRATE) ?
+		OutputDebugString(L"support WAVECAPS_PLAYBACKRATE\n") :
+		OutputDebugString(L"no support WAVECAPS_PLAYBACKRATE\n");
+
 	// set max. volume left and right 
 	waveOutSetVolume(g_hwo, 0xFFFF'FFFF);
 	// adjust slider to max. value
@@ -350,6 +379,54 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 	case TB_LINEUP:
 	case TB_THUMBTRACK:
 	{
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_PITCH))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_PITCH)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d\n"
+				, L"IDC_PITCH"
+				, track_pos
+			);
+			OutputDebugString(wszBuffer);
+
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_PITCH
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+
+			return (INT_PTR)TRUE;
+		}
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_PLAYRATE))
+		{
+			track_pos = SendMessage(GetDlgItem(hDlg, IDC_PLAYRATE)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+
+			swprintf_s(wszBuffer
+				, (size_t)BUFFER_MAX
+				, L"%s %d\n"
+				, L"IDC_PLAYRATE"
+				, track_pos
+			);
+			OutputDebugString(wszBuffer);
+
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_PLAYRATE
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+
+			return (INT_PTR)TRUE;
+		}
 		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME))
 		{
 			track_pos = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME)
