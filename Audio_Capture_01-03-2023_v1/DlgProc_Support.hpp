@@ -308,12 +308,21 @@ BOOL start_audio_playback()
 		, &woc
 		, sizeof(woc)
 	);
-	(woc.dwSupport & WAVECAPS_PITCH) ?
-		OutputDebugString(L"support WAVECAPS_PITCH\n") :
-		OutputDebugString(L"no support WAVECAPS_PITCH\n");
+	// not supported
+	//(woc.dwSupport & WAVECAPS_PITCH) ?
+	//	OutputDebugString(L"support WAVECAPS_PITCH\n") :
+	//	OutputDebugString(L"no support WAVECAPS_PITCH\n");
 	(woc.dwSupport & WAVECAPS_PLAYBACKRATE) ?
 		OutputDebugString(L"support WAVECAPS_PLAYBACKRATE\n") :
 		OutputDebugString(L"no support WAVECAPS_PLAYBACKRATE\n");
+	DWORD dwRate = 0;
+	waveOutGetPlaybackRate(g_hwo, &dwRate);
+	// adjust slider to default value
+	SendMessage(GetDlgItem(g_hDlg, IDC_PLAYRATE)
+		, TBM_SETPOS
+		, (WPARAM)TRUE
+		, (LPARAM)50
+	);
 
 	// set max. volume left and right 
 	waveOutSetVolume(g_hwo, 0xFFFF'FFFF);
