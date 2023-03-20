@@ -242,19 +242,20 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			waveOutRestart(g_hwo);
 			break;
 		} // eof IDC_RESTART
-		case IDC_PITCH:
-		{
-			OutputDebugString(L"audio_playback IDC_PITCH\n");
-			waveOutSetPitch(g_hwo
-				, MAKELPARAM(0, 0xF)
-			);
-			break;
-		} // eof IDC_PITCH
+		// not supported
+		//case IDC_PITCH:
+		//{
+		//	OutputDebugString(L"audio_playback IDC_PITCH\n");
+		//	waveOutSetPitch(g_hwo
+		//		, MAKELPARAM(0, 0xF)
+		//	);
+		//	break;
+		//} // eof IDC_PITCH
 		case IDC_PLAYRATE:
 		{
 			OutputDebugString(L"audio_playback IDC_PLAYRATE\n");
 			waveOutSetPlaybackRate(g_hwo
-				, MAKELPARAM(0, 0xF)
+				, MAKELPARAM(msg.wParam, msg.lParam)
 			);
 			break;
 		} // eof IDC_PLAYRATE
@@ -270,7 +271,7 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		{
 			OutputDebugString(L"audio_playback IDC_RVOLUME\n");
 			waveOutSetVolume(g_hwo
-				, MAKELPARAM(msg.lParam, msg.wParam)
+				, MAKELPARAM(msg.wParam * 0xFFFF, msg.lParam)
 			);
 			break;
 		} // eof IDC_RVOLUME
@@ -420,18 +421,28 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 				, (LPARAM)0
 			);
 
-			swprintf_s(wszBuffer
-				, (size_t)BUFFER_MAX
-				, L"%s %d\n"
-				, L"IDC_PLAYRATE"
-				, track_pos
-			);
-			OutputDebugString(wszBuffer);
+			DWORD int_val = 0;
+			DWORD fractional_val = 0;
+			if (track_pos == 50)
+			{
+				int_val = 1;
+				fractional_val = 0;
+			}
+			else if (track_pos > 50)
+			{
+				int_val = 1;
+				fractional_val = ((FLOAT)track_pos / 100.) * 0xFFFF;
+			}
+			else if (track_pos < 50)
+			{
+				int_val = 0;
+				fractional_val = ((FLOAT)track_pos / 10.) * 0xFFFF;
+			}
 
 			PostThreadMessage(g_dwAudioPlaybackId
 				, IDC_PLAYRATE
-				, (WPARAM)0
-				, (LPARAM)0
+				, (WPARAM)fractional_val
+				, (LPARAM)int_val
 			);
 
 			return (INT_PTR)TRUE;
