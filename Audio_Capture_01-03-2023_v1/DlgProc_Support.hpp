@@ -103,6 +103,7 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 BOOL start_audio_playback()
 {
 	OutputDebugString(L"start_audio_playback()\n");
+
 	// start thread audio_playback
 	g_hAudioPlayback = CreateThread(NULL
 		, 0
@@ -111,6 +112,15 @@ BOOL start_audio_playback()
 		, 0 // run immediately
 		, &g_dwAudioPlaybackId
 	);
+	// open wave out
+	rc = waveOutOpen(&g_hwo
+		, SPEAKER_HEADPHONE
+		, &g_wfx
+		, (DWORD)g_dwAudioPlaybackId
+		, (DWORD)0
+		, CALLBACK_THREAD
+	);
+
 	return EXIT_SUCCESS;
 }
 
