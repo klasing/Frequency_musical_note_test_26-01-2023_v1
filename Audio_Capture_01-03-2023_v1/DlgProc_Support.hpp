@@ -1,11 +1,338 @@
 #pragma once
 //*****************************************************************************
 //*                     note
+//*****************************************************************************
+
+//*****************************************************************************
+//*                     include
+//*****************************************************************************
+#include "framework.h"
+#include "Audio_Capture_01-03-2023_v1.h"
+
+//****************************************************************************
+//*                     global
+//****************************************************************************
+WCHAR g_wszBuffer[BUFFER_MAX] = { '\0' };
+HANDLE g_hAudioPlayback = NULL;
+DWORD g_dwAudioPlaybackId = 0;
+INT32 g_tpLVolume = 0;
+INT32 g_tpRVolume = 0;
+INT32 g_tpPlayRate = 0;
+
+//*****************************************************************************
+//*                     audio_playback
+//*****************************************************************************
+DWORD WINAPI audio_playback(LPVOID lpVoid)
+{
+	MSG msg;
+	while (GetMessage(&msg, nullptr, 0, 0))
+	{
+		switch (msg.message)
+		{
+		case IDC_PLAYBACK:
+		{
+			OutputDebugString(L"audio_playback IDC_PLAYBACK\n");
+
+			break;
+		} // eof IDC_PLAYBACK
+		case IDC_RESET:
+		{
+			OutputDebugString(L"audio_playback IDC_RESET\n");
+
+			break;
+		} // eof IDC_RESET
+		case IDC_PAUSE:
+		{
+			OutputDebugString(L"audio_playback IDC_PAUSE\n");
+
+			break;
+		} // eof IDC_PAUSE
+		case IDC_RESTART:
+		{
+			OutputDebugString(L"audio_playback IDC_RESTART\n");
+
+			break;
+		} // eof IDC_RESTART
+		case IDC_LVOLUME:
+		{
+			OutputDebugString(L"audio_playback IDC_LVOLUME\n");
+
+			break;
+		} // eof IDC_LVOLUME
+		case IDC_RVOLUME:
+		{
+			OutputDebugString(L"audio_playback IDC_RVOLUME\n");
+
+			break;
+		} // eof IDC_RVOLUME
+		case IDC_PLAYRATE:
+		{
+			OutputDebugString(L"audio_playback IDC_PLAYRATE\n");
+
+			break;
+		} // eof IDC_PLAYRATE
+
+		case MM_WOM_OPEN:
+		{
+			OutputDebugString(L"audio_playback MM_WOM_OPEN\n");
+
+			break;
+		} // eof MM_WOM_OPEN
+		case MM_WOM_DONE:
+		{
+			OutputDebugString(L"audio_playback MM_WOM_DONE\n");
+
+			break;
+		} // eof MM_WOM_DONE
+		case MM_WOM_CLOSE:
+		{
+			OutputDebugString(L"audio_playback MM_WOM_CLOSE\n");
+
+			// let this thread die
+			return 0;
+		} // eof MM_WOM_CLOSE
+		} // eof switch
+	}
+	
+	return 0;
+}
+
+//*****************************************************************************
+//*                     start_audio_playback
+//*****************************************************************************
+BOOL start_audio_playback()
+{
+	OutputDebugString(L"start_audio_playback()\n");
+	// start thread audio_playback
+	g_hAudioPlayback = CreateThread(NULL
+		, 0
+		, audio_playback
+		, (LPVOID)nullptr
+		, 0 // run immediately
+		, &g_dwAudioPlaybackId
+	);
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmInitDialog_DlgProc
+//*****************************************************************************
+BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
+	, const HWND& hDlg
+)
+{
+	OutputDebugString(L"onWmInitDialog_DlgProc\n");
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmSize_DlgProc
+//*****************************************************************************
+BOOL onWmSize_DlgProc(const HWND& hDlg
+)
+{
+	OutputDebugString(L"onWmSize_DlgProc\n");
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmHscroll_DlgProc
+//*****************************************************************************
+INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
+	, const WPARAM& wParam
+	, const LPARAM& lParam
+)
+{
+	OutputDebugString(L"onWmHscroll_DlgProc\n");
+
+	switch (LOWORD(wParam))
+	{
+	case TB_LINEDOWN:
+	case TB_LINEUP:
+	case TB_THUMBTRACK:
+	{
+		OutputDebugString(L"TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK\n");
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_LVOLUME))
+		{
+			OutputDebugString(L"IDC_LVOLUME\n");
+
+			g_tpLVolume = SendMessage(GetDlgItem(hDlg, IDC_LVOLUME)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_LVOLUME
+				, (WPARAM)0
+				, (LPARAM)g_tpLVolume
+			);
+
+			return (INT_PTR)TRUE;
+		}
+
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_RVOLUME))
+		{
+			OutputDebugString(L"IDC_RVOLUME\n");
+
+			g_tpRVolume = SendMessage(GetDlgItem(hDlg, IDC_RVOLUME)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_RVOLUME
+				, (WPARAM)0
+				, (LPARAM)g_tpRVolume
+			);
+
+			return (INT_PTR)TRUE;
+		}
+
+		if ((HWND)lParam == GetDlgItem(hDlg, IDC_PLAYRATE))
+		{
+			OutputDebugString(L"IDC_PLAYRATE\n");
+
+			g_tpPlayRate = SendMessage(GetDlgItem(hDlg, IDC_PLAYRATE)
+				, TBM_GETPOS
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_PLAYRATE
+				, (WPARAM)0
+				, (LPARAM)g_tpPlayRate
+			);
+
+			return (INT_PTR)TRUE;
+		}
+
+		break;
+	} // eof TB_LINEDOWN | TB_LINEUP | TB_THUMBTRACK
+	} // eof switch
+
+	return (INT_PTR)FALSE;
+}
+
+//*****************************************************************************
+//*                     onWmCommand_DlgProc
+//*****************************************************************************
+INT_PTR onWmCommand_DlgProc(const HWND& hDlg
+	, const WPARAM& wParam
+	, const LPARAM& lParam
+)
+{
+	OutputDebugString(L"onWmCommand_DlgProc\n");
+
+	HWND hWnd = NULL;
+	switch (LOWORD(wParam))
+	{
+	case IDC_PLAYBACK:
+	{
+		OutputDebugString(L"IDC_PLAYBACK\n");
+
+		hWnd = GetDlgItem(hDlg, IDC_PLAYBACK);
+		SendMessage(hWnd
+			, WM_GETTEXT
+			, (WPARAM)BUFFER_MAX
+			, (LPARAM)g_wszBuffer
+		);
+		if (wcscmp(g_wszBuffer, L"Start") == 0)
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Reset"
+			);
+			// enable button IDC_PAUSE
+			EnableWindow(GetDlgItem(hDlg, IDC_PAUSE), TRUE);
+
+			start_audio_playback();
+		}
+		else
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Start"
+			);
+			// set default text button IDC_PAUSE
+			SendMessage(GetDlgItem(hDlg, IDC_PAUSE)
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Pause"
+			);
+			// disable button IDC_PAUSE
+			EnableWindow(GetDlgItem(hDlg, IDC_PAUSE), FALSE);
+
+			// force audio playback to reset
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_RESET
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+		}
+
+		return (INT_PTR)TRUE;
+	} // eof IDC_PLAYBACK
+	case IDC_PAUSE:
+	{
+		OutputDebugString(L"IDC_PAUSE\n");
+
+		hWnd = GetDlgItem(hDlg, IDC_PAUSE);
+		SendMessage(hWnd
+			, WM_GETTEXT
+			, (WPARAM)BUFFER_MAX
+			, (LPARAM)g_wszBuffer
+		);
+		if (wcscmp(g_wszBuffer, L"Pause") == 0)
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Restart"
+			);
+			// send audio playback a message to pause
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_PAUSE
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+		}
+		else
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Pause"
+			);
+			// send audio playback a message to restart
+			PostThreadMessage(g_dwAudioPlaybackId
+				, IDC_RESTART
+				, (WPARAM)0
+				, (LPARAM)0
+			);
+		}
+
+		return (INT_PTR)TRUE;
+	} // eof IDC_PAUSE
+	} // eof switch
+
+	return (INT_PTR)FALSE;
+}
+/*
+//*****************************************************************************
+//*                     note
 //*
 //* TODO:
 //* waveOutReset function
 //* waveOutPause/waveOutRestart function
-//* waveOutSetPitch function
+//* waveOutSetPitch function (not supported)
 //* waveOutSetPlaybackRate function
 //* waveOutSetVolume function
 //*****************************************************************************
@@ -38,7 +365,8 @@ DWORD g_nBlock = 0;
 DWORD g_cBufferOut = 0;
 VOID* g_pPlaybackBuffer[PLAY_MAX_BUFFERS]{};
 DWORD g_dwSizeRead = 0;
-DWORD g_dwVolume = 0;
+// low word is left, high word is right
+DWORD g_dwVolume = 0x8000'8000;
 //*****************************************************************************
 //*                     audio_capture
 //*****************************************************************************
@@ -262,6 +590,7 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		case IDC_LVOLUME:
 		{
 			OutputDebugString(L"audio_playback IDC_LVOLUME\n");
+			// low order is left volume
 			waveOutSetVolume(g_hwo
 				, MAKELPARAM(msg.lParam, msg.wParam)
 			);
@@ -270,8 +599,9 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		case IDC_RVOLUME:
 		{
 			OutputDebugString(L"audio_playback IDC_RVOLUME\n");
+			// high order is right volume
 			waveOutSetVolume(g_hwo
-				, MAKELPARAM(msg.wParam * 0xFFFF, msg.lParam)
+				, MAKELPARAM(msg.lParam, msg.wParam)
 			);
 			break;
 		} // eof IDC_RVOLUME
@@ -325,18 +655,18 @@ BOOL start_audio_playback()
 		, (LPARAM)50
 	);
 
-	// set max. volume left and right 
-	waveOutSetVolume(g_hwo, 0xFFFF'FFFF);
-	// adjust slider to max. value
+	// set volume left and right 
+	waveOutSetVolume(g_hwo, g_dwVolume);
+	// adjust slider to value
 	SendMessage(GetDlgItem(g_hDlg, IDC_LVOLUME)
 		, TBM_SETPOS
 		, (WPARAM)TRUE
-		, (LPARAM)100
+		, (LPARAM)50
 	);
 	SendMessage(GetDlgItem(g_hDlg, IDC_RVOLUME)
 		, TBM_SETPOS
 		, (WPARAM)TRUE
-		, (LPARAM)100
+		, (LPARAM)50
 	);
 	return EXIT_SUCCESS;
 }
@@ -389,30 +719,31 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 	case TB_LINEUP:
 	case TB_THUMBTRACK:
 	{
-		if ((HWND)lParam == GetDlgItem(hDlg, IDC_PITCH))
-		{
-			track_pos = SendMessage(GetDlgItem(hDlg, IDC_PITCH)
-				, TBM_GETPOS
-				, (WPARAM)0
-				, (LPARAM)0
-			);
+		// not supported
+		//if ((HWND)lParam == GetDlgItem(hDlg, IDC_PITCH))
+		//{
+		//	track_pos = SendMessage(GetDlgItem(hDlg, IDC_PITCH)
+		//		, TBM_GETPOS
+		//		, (WPARAM)0
+		//		, (LPARAM)0
+		//	);
 
-			swprintf_s(wszBuffer
-				, (size_t)BUFFER_MAX
-				, L"%s %d\n"
-				, L"IDC_PITCH"
-				, track_pos
-			);
-			OutputDebugString(wszBuffer);
+		//	swprintf_s(wszBuffer
+		//		, (size_t)BUFFER_MAX
+		//		, L"%s %d\n"
+		//		, L"IDC_PITCH"
+		//		, track_pos
+		//	);
+		//	OutputDebugString(wszBuffer);
 
-			PostThreadMessage(g_dwAudioPlaybackId
-				, IDC_PITCH
-				, (WPARAM)0
-				, (LPARAM)0
-			);
+		//	PostThreadMessage(g_dwAudioPlaybackId
+		//		, IDC_PITCH
+		//		, (WPARAM)0
+		//		, (LPARAM)0
+		//	);
 
-			return (INT_PTR)TRUE;
-		}
+		//	return (INT_PTR)TRUE;
+		//}
 		if ((HWND)lParam == GetDlgItem(hDlg, IDC_PLAYRATE))
 		{
 			track_pos = SendMessage(GetDlgItem(hDlg, IDC_PLAYRATE)
@@ -463,12 +794,17 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 			);
 			OutputDebugString(wszBuffer);
 
-			DWORD dwVolume = 0;
-			waveOutGetVolume(g_hwo, &dwVolume);
+			// get right channel volume
+			waveOutGetVolume(g_hwo, &g_dwVolume);
+			// low order is left volume
 			PostThreadMessage(g_dwAudioPlaybackId
 				, IDC_LVOLUME
-				, (WPARAM)(dwVolume & 0xFFFF'0000) >> 16
+				, (WPARAM)(g_dwVolume & 0xFFFF'0000) >> 16
 				, (LPARAM)((FLOAT)track_pos / 100.f * 0xFFFF)
+			);
+			g_dwVolume = MAKELPARAM(
+				(g_dwVolume & 0xFFFF'0000) >> 16
+				, (FLOAT)track_pos / 100.f * 0xFFFF
 			);
 
 			return (INT_PTR)TRUE;
@@ -489,12 +825,17 @@ INT_PTR onWmHscroll_DlgProc(const HWND& hDlg
 			);
 			OutputDebugString(wszBuffer);
 
-			DWORD dwVolume = 0;
-			waveOutGetVolume(g_hwo, &dwVolume);
+			// get left channel volume
+			waveOutGetVolume(g_hwo, &g_dwVolume);
+			// high order is right volume
 			PostThreadMessage(g_dwAudioPlaybackId
 				, IDC_RVOLUME
 				, (WPARAM)((FLOAT)track_pos / 100.f * 0xFFFF)
-				, (LPARAM)dwVolume & 0x0000'FFFF
+				, (LPARAM)g_dwVolume & 0x0000'FFFF
+			);
+			g_dwVolume = MAKELPARAM(
+				(FLOAT)track_pos / 100.f * 0xFFFF
+				, (g_dwVolume & 0xFFFF)
 			);
 
 			return (INT_PTR)TRUE;
@@ -629,4 +970,4 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	
 	return (INT_PTR)FALSE;
 }
-
+*/
