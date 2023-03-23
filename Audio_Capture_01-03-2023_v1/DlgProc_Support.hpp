@@ -15,9 +15,13 @@
 WCHAR g_wszBuffer[BUFFER_MAX] = { '\0' };
 HANDLE g_hAudioPlayback = NULL;
 DWORD g_dwAudioPlaybackId = 0;
-INT32 g_tpLVolume = 0;
-INT32 g_tpRVolume = 0;
-INT32 g_tpPlayRate = 0;
+INT32 g_tpLVolume = 50;
+INT32 g_tpRVolume = 50;
+INT32 g_tpPlayRate = 50;
+
+WAVEFORMATEX g_wfx{};
+
+HWAVEOUT g_hwo{};
 
 //*****************************************************************************
 //*                     audio_playback
@@ -76,6 +80,14 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		{
 			OutputDebugString(L"audio_playback MM_WOM_OPEN\n");
 
+			WORD wLVolume = 0;
+			WORD wRVolume = 0;
+			// set volume, low-order left, high-order right
+			waveOutSetVolume(g_hwo
+				, (DWORD)(wRVolume << 16) & wLVolume
+			);
+			// set playrate
+
 			break;
 		} // eof MM_WOM_OPEN
 		case MM_WOM_DONE:
@@ -132,6 +144,34 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 )
 {
 	OutputDebugString(L"onWmInitDialog_DlgProc\n");
+
+	// initialize waveformat
+	g_wfx.nChannels = 2;
+	// make compatible with project Mixer_Fmnt_26-01-2023_v1
+	g_wfx.nSamplesPerSec = 48'000;
+	//g_wfx.nSamplesPerSec = 44'100;
+	g_wfx.wFormatTag = WAVE_FORMAT_PCM;
+	g_wfx.wBitsPerSample = 16;
+	g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
+	g_wfx.nAvgBytesPerSec = g_wfx.nSamplesPerSec * g_wfx.nBlockAlign;
+	g_wfx.cbSize = 0;
+
+	// set trackbar
+	SendMessage(GetDlgItem(hDlg, IDC_LVOLUME)
+		, TBM_SETPOS
+		, (WPARAM)TRUE
+		, (LPARAM)g_tpLVolume
+	);
+	SendMessage(GetDlgItem(hDlg, IDC_RVOLUME)
+		, TBM_SETPOS
+		, (WPARAM)TRUE
+		, (LPARAM)g_tpRVolume
+	);
+	SendMessage(GetDlgItem(hDlg, IDC_PLAYRATE)
+		, TBM_SETPOS
+		, (WPARAM)TRUE
+		, (LPARAM)g_tpPlayRate
+	);
 
 	return EXIT_SUCCESS;
 }
