@@ -10,23 +10,69 @@
 #include "Audio_Capture_01-03-2023_v1.h"
 
 //****************************************************************************
+//*                     extern
+//****************************************************************************
+extern HWND g_hDlg;
+
+//****************************************************************************
 //*                     global
 //****************************************************************************
 WCHAR g_wszBuffer[BUFFER_MAX] = { '\0' };
-HANDLE g_hAudioPlayback = NULL;
-DWORD g_dwAudioPlaybackId = 0;
+// gui
 INT32 g_tpLVolume = 50;
 INT32 g_tpRVolume = 50;
 INT32 g_tpPlayRate = 50;
 
+// common
 WAVEFORMATEX g_wfx{};
 
+// audio capture
+HANDLE g_hAudioCapture = NULL;
+DWORD g_dwAudioCaptureId = 0;
+
+// audio playback
+HANDLE g_hAudioPlayback = NULL;
+DWORD g_dwAudioPlaybackId = 0;
 HWAVEOUT g_hwo{};
 DWORD g_nBlock = 0;
 VOID* g_pPlaybackBuffer[PLAY_MAX_BUFFERS]{};
 DWORD g_dwSizeRead = 0;
 LPWAVEHDR g_who[PLAY_MAX_BUFFERS]{};
 DWORD g_cBufferOut = 0;
+
+//*****************************************************************************
+//*                     audio_capture
+//*****************************************************************************
+DWORD WINAPI audio_capture(LPVOID lpVoid)
+{
+	return 0;
+}
+
+//*****************************************************************************
+//*                     start_audio_capture
+//*****************************************************************************
+BOOL start_audio_capture()
+{
+	OutputDebugString(L"start_audio_capture()\n");
+
+	// start thread audio_capture
+	g_hAudioCapture = CreateThread(NULL
+		, 0
+		, audio_capture
+		, (LPVOID)nullptr
+		, 0 // run immediately
+		, &g_dwAudioCaptureId
+	);
+	//rc = waveInOpen(&g_hwi
+	//	, STEREO_MIX
+	//	, &g_wfx
+	//	, (DWORD)g_dwAudioCaptureId
+	//	, (DWORD)0
+	//	, CALLBACK_THREAD
+	//);
+
+	return EXIT_SUCCESS;
+}
 
 //*****************************************************************************
 //*                     audio_playback
@@ -166,6 +212,21 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		{
 			OutputDebugString(L"audio_playback MM_WOM_CLOSE\n");
 
+			for (int i = 0; i < g_nBlock; i++)
+			{
+				g_who[i] = NULL;
+			}
+			g_hwo = NULL;
+			g_cBufferOut = 0;
+			closeWaveFile();
+
+			// set default text on button
+			SendMessage(GetDlgItem(g_hDlg, IDC_PLAYBACK)
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Start"
+			);
+
 			// let this thread die
 			return 0;
 		} // eof MM_WOM_CLOSE
@@ -198,16 +259,35 @@ BOOL start_audio_playback()
 		, (DWORD)0
 		, CALLBACK_THREAD
 	);
-	WORD wLVolume = 0x8000;
-	WORD wRVolume = 0x8000;
+	// set volume from trackbar value
+	WORD wLVolume = (FLOAT)g_tpLVolume / 100.f * 0xFFFF;
+	WORD wRVolume = (FLOAT)g_tpRVolume / 100.f * 0xFFFF;
 	DWORD dwVolume = MAKELPARAM(wLVolume, wRVolume);
 	// set volume, low-order left, high-order right
 	waveOutSetVolume(g_hwo
 		, dwVolume
 	);
-	WORD wIntPart = 1;
+	// set playback rate from trackbar value
+	WORD wIntPart = 0;
 	WORD wFracPart = 0;
-	DWORD dwPlayRate = MAKELPARAM(wFracPart, wIntPart);
+	if (g_tpPlayRate == 50)
+	{
+		wIntPart = 1;
+		wFracPart = 0;
+	}
+	else if (g_tpPlayRate < 50)
+	{
+		wIntPart = 0;
+		wFracPart = ((FLOAT)g_tpPlayRate / 10.) * 0xFFFF;
+	}
+	else if (g_tpPlayRate > 50)
+	{
+		wIntPart = 1;
+		wFracPart = ((FLOAT)g_tpPlayRate / 100.) * 0xFFFF;
+	}
+	DWORD dwPlayRate = MAKELPARAM(wFracPart
+		, wIntPart
+	);
 	// set playrate, low-order fractional part, high-order integer part
 	waveOutSetPlaybackRate(g_hwo
 		, dwPlayRate
