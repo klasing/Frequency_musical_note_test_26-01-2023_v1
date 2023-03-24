@@ -22,6 +22,11 @@ INT32 g_tpPlayRate = 50;
 WAVEFORMATEX g_wfx{};
 
 HWAVEOUT g_hwo{};
+DWORD g_nBlock = 0;
+VOID* g_pPlaybackBuffer[PLAY_MAX_BUFFERS]{};
+DWORD g_dwSizeRead = 0;
+LPWAVEHDR g_who[PLAY_MAX_BUFFERS]{};
+DWORD g_cBufferOut = 0;
 
 //*****************************************************************************
 //*                     audio_playback
@@ -33,15 +38,12 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 	{
 		switch (msg.message)
 		{
-		case IDC_PLAYBACK:
-		{
-			OutputDebugString(L"audio_playback IDC_PLAYBACK\n");
-
-			break;
-		} // eof IDC_PLAYBACK
 		case IDC_RESET:
 		{
 			OutputDebugString(L"audio_playback IDC_RESET\n");
+
+			// close wave out, by triggering a MM_WOM_CLOSE message
+			waveOutReset(g_hwo);
 
 			break;
 		} // eof IDC_RESET
@@ -49,30 +51,64 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		{
 			OutputDebugString(L"audio_playback IDC_PAUSE\n");
 
+			// pause wave out
+			waveOutPause(g_hwo);
+
 			break;
 		} // eof IDC_PAUSE
 		case IDC_RESTART:
 		{
 			OutputDebugString(L"audio_playback IDC_RESTART\n");
 
+			// continue wave out, after a pause
+			waveOutRestart(g_hwo);
+			
 			break;
 		} // eof IDC_RESTART
 		case IDC_LVOLUME:
+		case IDC_RVOLUME:
 		{
 			OutputDebugString(L"audio_playback IDC_LVOLUME\n");
 
-			break;
-		} // eof IDC_LVOLUME
-		case IDC_RVOLUME:
-		{
-			OutputDebugString(L"audio_playback IDC_RVOLUME\n");
+			WORD wLVolume = (FLOAT)g_tpLVolume / 100.f * 0xFFFF;
+			WORD wRVolume = (FLOAT)g_tpRVolume / 100.f * 0xFFFF;
+			DWORD dwVolume = MAKELPARAM(wLVolume
+				, wRVolume
+			);
+			// set volume
+			waveOutSetVolume(g_hwo
+				, dwVolume
+			);
 
 			break;
-		} // eof IDC_RVOLUME
+		} // eof IDC_LVOLUME
 		case IDC_PLAYRATE:
 		{
 			OutputDebugString(L"audio_playback IDC_PLAYRATE\n");
 
+			WORD wIntPart = 0;
+			WORD wFracPart = 0;
+			if (g_tpPlayRate == 50)
+			{
+				wIntPart = 1;
+				wFracPart = 0;
+			}
+			else if (g_tpPlayRate < 50)
+			{
+				wIntPart = 0;
+				wFracPart = ((FLOAT)g_tpPlayRate / 10.) * 0xFFFF;
+			}
+			else if (g_tpPlayRate > 50)
+			{
+				wIntPart = 1;
+				wFracPart = ((FLOAT)g_tpPlayRate / 100.) * 0xFFFF;
+			}
+			DWORD dwPlayRate = MAKELPARAM(wFracPart
+				, wIntPart
+			);
+			waveOutSetPlaybackRate(g_hwo
+				, dwPlayRate
+			);
 			break;
 		} // eof IDC_PLAYRATE
 
@@ -80,19 +116,49 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		{
 			OutputDebugString(L"audio_playback MM_WOM_OPEN\n");
 
-			WORD wLVolume = 0;
-			WORD wRVolume = 0;
-			// set volume, low-order left, high-order right
-			waveOutSetVolume(g_hwo
-				, (DWORD)(wRVolume << 16) & wLVolume
+			// open .wav file
+			openWaveFile((const LPWSTR)L"wav_file.wav"
+				, &g_wfx
+				, WAVEFILE_READ
 			);
-			// set playrate
+			// nof block to play
+			g_nBlock = getSizeWaveFile() / DATABLOCK_SIZE;
+			for (UINT32 i = 0; i < g_nBlock; i++)
+			{
+				g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
+				hr = readWaveFile((BYTE*)g_pPlaybackBuffer[i]
+					, DATABLOCK_SIZE
+					, &g_dwSizeRead
+				);
+
+				g_ck.dwDataOffset += g_dwSizeRead;
+
+				g_who[i] = new WAVEHDR;
+				g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
+				g_who[i]->dwBufferLength = DATABLOCK_SIZE;
+				g_who[i]->dwFlags = 0;
+				g_who[i]->dwLoops = 0;
+
+				waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
+			}
+			// start playing
+			g_cBufferOut = 0;
+			while (g_cBufferOut < g_nBlock)
+			{
+				waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
+			}
 
 			break;
 		} // eof MM_WOM_OPEN
 		case MM_WOM_DONE:
 		{
 			OutputDebugString(L"audio_playback MM_WOM_DONE\n");
+
+			if (g_cBufferOut == g_nBlock)
+			{
+				// all blocks are played
+				waveOutClose(g_hwo);
+			}
 
 			break;
 		} // eof MM_WOM_DONE
@@ -131,6 +197,20 @@ BOOL start_audio_playback()
 		, (DWORD)g_dwAudioPlaybackId
 		, (DWORD)0
 		, CALLBACK_THREAD
+	);
+	WORD wLVolume = 0x8000;
+	WORD wRVolume = 0x8000;
+	DWORD dwVolume = MAKELPARAM(wLVolume, wRVolume);
+	// set volume, low-order left, high-order right
+	waveOutSetVolume(g_hwo
+		, dwVolume
+	);
+	WORD wIntPart = 1;
+	WORD wFracPart = 0;
+	DWORD dwPlayRate = MAKELPARAM(wFracPart, wIntPart);
+	// set playrate, low-order fractional part, high-order integer part
+	waveOutSetPlaybackRate(g_hwo
+		, dwPlayRate
 	);
 
 	return EXIT_SUCCESS;
