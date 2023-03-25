@@ -29,6 +29,10 @@ WAVEFORMATEX g_wfx{};
 // audio capture
 HANDLE g_hAudioCapture = NULL;
 DWORD g_dwAudioCaptureId = 0;
+HWAVEIN g_hwi{};
+LPWAVEHDR g_whi[MAX_BUFFERS]{};
+UINT32 g_cBufferIn = 0;
+BOOL g_bStopAudioCapture = FALSE;
 
 // audio playback
 HANDLE g_hAudioPlayback = NULL;
@@ -45,6 +49,94 @@ DWORD g_cBufferOut = 0;
 //*****************************************************************************
 DWORD WINAPI audio_capture(LPVOID lpVoid)
 {
+	MSG msg;
+	while (GetMessage(&msg, nullptr, 0, 0))
+	{
+		switch (msg.message)
+		{
+		case MM_WIM_OPEN:
+		{
+			OutputDebugString(L"audio_capture MM_WIM_OPEN\n");
+
+			// open .wav file
+			openWaveFile((const LPWSTR)L"wav_file.wav"
+				, &g_wfx
+				, WAVEFILE_WRITE
+			);
+			for (int i = 0; i < MAX_BUFFERS; i++)
+			{
+				// allocate buffer
+				g_whi[i] = new WAVEHDR;
+				if (g_whi[i])
+				{
+					g_whi[i]->lpData = new char[DATABLOCK_SIZE];
+					g_whi[i]->dwBufferLength = DATABLOCK_SIZE;
+					g_whi[i]->dwFlags = 0;
+				}
+				// prepare buffer
+				waveInPrepareHeader(g_hwi
+					, g_whi[i]
+					, sizeof(WAVEHDR)
+				);
+				// add to input queue
+				waveInAddBuffer(g_hwi, g_whi[i], sizeof(WAVEHDR));
+			}
+			// start audio capture
+			waveInStart(g_hwi);
+
+			break;
+		} // eof MM_WIM_OPEN
+		case MM_WIM_DATA:
+		{
+			OutputDebugString(L"audio_capture MM_WIM_DATA\n");
+
+			if (!g_bStopAudioCapture)
+			{
+				UINT nSizeWrote = 0;
+				writeWaveFile(g_whi[g_cBufferIn]->dwBufferLength
+					, (BYTE*)g_whi[g_cBufferIn]->lpData
+					, &nSizeWrote
+				);
+				// prepare buffer and add to input queue
+				waveInPrepareHeader(g_hwi
+					, g_whi[g_cBufferIn]
+					, sizeof(WAVEHDR)
+				);
+				waveInAddBuffer(g_hwi
+					, g_whi[g_cBufferIn], sizeof(WAVEHDR)
+				);
+				// point to the next buffer
+				g_cBufferIn = ++g_cBufferIn % MAX_BUFFERS;
+			}
+			else
+			{
+				// mark all pending buffers as done
+				waveInReset(g_hwi);
+				// stop audio capture
+				waveInStop(g_hwi);
+				// trigger MM_WIM_CLOSE message
+				waveInClose(g_hwi);
+			}
+
+			break;
+		} // eof MM_WIM_DATA
+		case MM_WIM_CLOSE:
+		{
+			OutputDebugString(L"audio_capture MM_WIM_CLOSE\n");
+			
+			closeWaveFile();
+			for (int i = 0; i < MAX_BUFFERS; i++)
+			{
+				g_whi[i] = NULL;
+			}
+			g_hwi = NULL;
+			g_bStopAudioCapture = FALSE;
+
+			break;
+		} // eof MM_WIM_CLOSE
+		} // eof switch
+	}
+	
 	return 0;
 }
 
@@ -63,13 +155,13 @@ BOOL start_audio_capture()
 		, 0 // run immediately
 		, &g_dwAudioCaptureId
 	);
-	//rc = waveInOpen(&g_hwi
-	//	, STEREO_MIX
-	//	, &g_wfx
-	//	, (DWORD)g_dwAudioCaptureId
-	//	, (DWORD)0
-	//	, CALLBACK_THREAD
-	//);
+	rc = waveInOpen(&g_hwi
+		, STEREO_MIX
+		, &g_wfx
+		, (DWORD)g_dwAudioCaptureId
+		, (DWORD)0
+		, CALLBACK_THREAD
+	);
 
 	return EXIT_SUCCESS;
 }
@@ -438,6 +530,38 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	HWND hWnd = NULL;
 	switch (LOWORD(wParam))
 	{
+	case IDC_START_AUDIO_CAPTURE:
+	{
+		OutputDebugString(L"IDC_START_AUDIO_CAPTURE\n");
+		hWnd = GetDlgItem(hDlg, IDC_START_AUDIO_CAPTURE);
+		SendMessage(hWnd
+			, WM_GETTEXT
+			, (WPARAM)BUFFER_MAX
+			, (LPARAM)g_wszBuffer
+		);
+		if (wcscmp(g_wszBuffer, L"Start") == 0)
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Stop"
+			);
+			start_audio_capture();
+		}
+		else
+		{
+			// change text on button
+			SendMessage(hWnd
+				, WM_SETTEXT
+				, (WPARAM)0
+				, (LPARAM)L"Start"
+			);
+			// force audio capture to stop
+			g_bStopAudioCapture = TRUE;
+		}
+		return (INT_PTR)TRUE;
+	} // eof IDC_START_AUDIO_CAPTURE
 	case IDC_PLAYBACK:
 	{
 		OutputDebugString(L"IDC_PLAYBACK\n");
