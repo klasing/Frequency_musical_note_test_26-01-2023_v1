@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DlgProc_Support.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Karplus_Strong_Algo_25-03-2023_v1.h" />
     <ClInclude Include="Resource.h" />

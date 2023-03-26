@@ -1,3 +1,6 @@
+#define IDC_PLUCK				30000
+#define IDC_STRUM				30001
+
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Karplus_Strong_Algo_25-03-2023_v1.rc
