@@ -14,6 +14,7 @@
 using namespace Gdiplus;
 
 // an easy way to add the library
+#pragma comment(lib, "Winmm.lib")
 #pragma comment (lib,"Gdiplus.lib")
 // C RunTime Header Files
 #include <stdlib.h>
@@ -21,6 +22,18 @@ using namespace Gdiplus;
 #include <memory.h>
 #include <tchar.h>
 
+#include <objbase.h>
+#include <mmeapi.h>
+#include <mmreg.h>
+#include <mmiscapi.h>
+
+#ifdef _WIN32
+#define _USE_MATH_DEFINES
+#endif
+#include <cmath>
+#include <memory>
 #include <vector>
+#include <random>
+
 
 

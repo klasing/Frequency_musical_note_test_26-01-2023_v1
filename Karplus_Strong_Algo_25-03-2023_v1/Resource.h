@@ -1,5 +1,16 @@
-#define IDC_PLUCK				30000
-#define IDC_STRUM				30001
+// use Speaker/Headphone
+#define SPEAKER_HEADPHONE			0
+
+#define DATABLOCK_SIZE				8192 // (bytes)
+
+#define PITCH_STANDARD_HZ			440.f
+// do not use an apostrophe (48'000) in a RESOURCE.H file
+#define SAMPLE_RATE					48000
+
+#define MAX_RINGBUFFER				10
+
+#define IDC_PLUCK					30000
+#define IDC_STRUM					30001
 
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
