@@ -48,8 +48,9 @@ HANDLE g_hAudioPlayback = NULL;
 DWORD g_dwAudioPlaybackId = 0;
 HWAVEOUT g_hwo{};
 DWORD g_nBlock = 0;
-VOID* g_pPlaybackBuffer{};
+VOID* g_pPlaybackBuffer[SAMPLE_RATE / DATABLOCK_SIZE]{};
 LPWAVEHDR g_who[SAMPLE_RATE / DATABLOCK_SIZE]{};
+float g_fData[SAMPLE_RATE];
 DWORD g_cBufferOut = 0;
 
 //*****************************************************************************
@@ -71,14 +72,17 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			g_nBlock = SAMPLE_RATE / DATABLOCK_SIZE;
 			for (UINT32 i = 0; i < g_nBlock; i++)
 			{
-				g_pPlaybackBuffer = new BYTE[DATABLOCK_SIZE];
+				g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
+
 				// NOISE
 				for (int j = 0; j < DATABLOCK_SIZE; j++)
 				{
-					*((BYTE*)g_pPlaybackBuffer + j) = 0x7F * float_dist(engine);
+					g_fData[j] = 0x7F * float_dist(engine);
+					*((BYTE*)g_pPlaybackBuffer[i] + j) = g_fData[j];
 				}
+
 				g_who[i] = new WAVEHDR;
-				g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer;
+				g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
 				g_who[i]->dwBufferLength = DATABLOCK_SIZE;
 				g_who[i]->dwFlags = 0;
 				g_who[i]->dwLoops = 0;
