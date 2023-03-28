@@ -7,7 +7,8 @@
 // do not use an apostrophe (48'000) in a RESOURCE.H file
 #define SAMPLE_RATE					48000
 
-#define MAX_RINGBUFFER				10
+// test
+//#define MAX_RINGBUFFER				10
 
 #define IDC_PLUCK					30000
 #define IDC_STRUM					30001

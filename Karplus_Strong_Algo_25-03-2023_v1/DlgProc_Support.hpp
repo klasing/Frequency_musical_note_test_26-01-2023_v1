@@ -1,6 +1,9 @@
 #pragma once
 //*****************************************************************************
 //*                     note
+//*
+//* the A string of a guitar is normally tuned to 110 Hz
+//*
 //*****************************************************************************
 
 //*****************************************************************************
@@ -53,13 +56,64 @@ LPWAVEHDR g_who[SAMPLE_RATE / DATABLOCK_SIZE]{};
 float g_fData[SAMPLE_RATE];
 DWORD g_cBufferOut = 0;
 
+std::mt19937_64 g_engine;
+std::uniform_real_distribution<float> g_float_dist;
+
+//****************************************************************************
+//*                     karplus_strong
+//*
+//* https://www.math.drexel.edu/~dp399/musicmath/Karplus-Strong.html
+//****************************************************************************
+BOOL 
+karplus_strong(const float& frequency_hz
+	, const INT& nPeriod
+)
+{
+	OutputDebugString(L"karplus_strong()\n");
+
+	std::vector<float> ring_buffer;
+	// initialize ring buffer
+	UINT32 size_ring_buffer = round(SAMPLE_RATE / frequency_hz);
+	ring_buffer.resize(size_ring_buffer);
+	for (UINT32 i = 0; i < size_ring_buffer; i++)
+	{
+		ring_buffer.at(i) = 2. * g_float_dist(g_engine) - 1.;
+	}
+	// synthesize Karplus-Strong waveform
+
+	return EXIT_SUCCESS;
+}
+/*
+	// test a ringbuffer
+	std::vector<float> ring_buffer;
+	ring_buffer.resize(MAX_RINGBUFFER);
+	for (int i = 0; i < 15; i++)
+	{
+		int idx = i % MAX_RINGBUFFER;
+		ring_buffer.at(idx) = (float)i;
+	}
+	float energy_decay_factor = .7;// .994;
+	// test feedback mechanism
+	float value_feedback = 0.;
+	do
+	{
+		value_feedback = energy_decay_factor
+			* .5 * (ring_buffer[0] + ring_buffer[1]);
+		// remove the first element of the ring_buffer
+		ring_buffer.erase(ring_buffer.begin());
+		// add the feedback value to the ring_buffer
+		ring_buffer.push_back(value_feedback);
+	} while (value_feedback > 3.);
+*/
+
 //*****************************************************************************
 //*                     audio_playback
 //*****************************************************************************
 DWORD WINAPI audio_playback(LPVOID lpVoid)
 {
-	std::mt19937_64 engine;
-	std::uniform_real_distribution<float> float_dist;
+	float g_frequency_hz = g_oNote.aFreq[69];
+	float delta = 2.f * g_frequency_hz * float(M_PI / SAMPLE_RATE);
+	float phase = 0.f;
 	MSG msg;
 	while (GetMessage(&msg, nullptr, 0, 0))
 	{
@@ -75,10 +129,18 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 				g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
 
 				// NOISE
-				for (int j = 0; j < DATABLOCK_SIZE; j++)
+				//for (int j = 0; j < DATABLOCK_SIZE; j++)
+				//{
+				//	g_fData[j] = 0x7F * g_float_dist(g_engine);
+				//	*((BYTE*)g_pPlaybackBuffer[i] + j) = g_fData[j];
+				//}
+				// PURE SINE WAVE
+				for (int j = 0; j < DATABLOCK_SIZE - 1; j += 2)
 				{
-					g_fData[j] = 0x7F * float_dist(engine);
-					*((BYTE*)g_pPlaybackBuffer[i] + j) = g_fData[j];
+					float next_sample = 0x7F * std::sin(phase);
+					phase = std::fmod(phase + delta, 2.f * static_cast<float>(M_PI));
+					*((BYTE*)g_pPlaybackBuffer[i] + j) = next_sample;
+					*((BYTE*)g_pPlaybackBuffer[i] + j + 1) = next_sample;
 				}
 
 				g_who[i] = new WAVEHDR;
@@ -169,30 +231,10 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	g_wfx.nAvgBytesPerSec = g_wfx.nSamplesPerSec * g_wfx.nBlockAlign;
 	g_wfx.cbSize = 0;
 
+	karplus_strong(g_oNote.aFreq[69]);
+
 	return EXIT_SUCCESS;
 }
-/*
-	// test a ringbuffer
-	std::vector<float> ring_buffer;
-	ring_buffer.resize(MAX_RINGBUFFER);
-	for (int i = 0; i < 15; i++)
-	{
-		int idx = i % MAX_RINGBUFFER;
-		ring_buffer.at(idx) = (float)i;
-	}
-	float energy_decay_factor = .7;// .994;
-	// test feedback mechanism
-	float value_feedback = 0.;
-	do
-	{
-		value_feedback = energy_decay_factor
-			* .5 * (ring_buffer[0] + ring_buffer[1]);
-		// remove the first element of the ring_buffer
-		ring_buffer.erase(ring_buffer.begin());
-		// add the feedback value to the ring_buffer
-		ring_buffer.push_back(value_feedback);
-	} while (value_feedback > 3.);
-*/
 
 //*****************************************************************************
 //*                     onWmSize_DlgProc
