@@ -51,6 +51,8 @@ HANDLE g_hAudioPlayback = NULL;
 DWORD g_dwAudioPlaybackId = 0;
 HWAVEOUT g_hwo{};
 DWORD g_nBlock = 0;
+//VOID* g_pPlaybackBuffer[440]{};
+//LPWAVEHDR g_who[440]{};
 VOID* g_pPlaybackBuffer[SAMPLE_RATE / DATABLOCK_SIZE]{};
 LPWAVEHDR g_who[SAMPLE_RATE / DATABLOCK_SIZE]{};
 float g_fData[SAMPLE_RATE];
@@ -59,11 +61,14 @@ DWORD g_cBufferOut = 0;
 std::mt19937_64 g_engine;
 std::uniform_real_distribution<float> g_float_dist;
 
+std::vector<float> g_ks{};
+
 //****************************************************************************
 //*                     karplus_strong
 //*
 //* https://www.math.drexel.edu/~dp399/musicmath/Karplus-Strong.html
 //****************************************************************************
+/*
 BOOL 
 karplus_strong(const float& frequency_hz
 	, const INT& nPeriod
@@ -71,18 +76,31 @@ karplus_strong(const float& frequency_hz
 {
 	OutputDebugString(L"karplus_strong()\n");
 
-	std::vector<float> ring_buffer;
+	std::vector<float> wave_table;
 	// initialize ring buffer
-	UINT32 size_ring_buffer = round(SAMPLE_RATE / frequency_hz);
-	ring_buffer.resize(size_ring_buffer);
-	for (UINT32 i = 0; i < size_ring_buffer; i++)
+	UINT32 max_wavetable = round(SAMPLE_RATE / frequency_hz);
+	wave_table.resize(max_wavetable);
+	for (UINT32 i = 0; i < max_wavetable; i++)
 	{
-		ring_buffer.at(i) = 2. * g_float_dist(g_engine) - 1.;
+		wave_table.at(i) = 2. * g_float_dist(g_engine) - 1.;
 	}
 	// synthesize Karplus-Strong waveform
-
+	UINT32 current_sample = 0;
+	float previous_value = 0.f;
+	//std::vector<float> samples{};
+	while (g_samples.size() < 4 * max_wavetable)
+	{
+		wave_table.at(current_sample) = .5
+			* (wave_table.at(current_sample) + previous_value);
+		g_samples.push_back(wave_table[current_sample]);
+		previous_value = (current_sample >= 1) ?
+			g_samples[current_sample - 1] : 0.;
+		++current_sample;
+		current_sample = current_sample % max_wavetable;
+	}
 	return EXIT_SUCCESS;
 }
+*/
 /*
 	// test a ringbuffer
 	std::vector<float> ring_buffer;
@@ -107,13 +125,122 @@ karplus_strong(const float& frequency_hz
 */
 
 //*****************************************************************************
+//*                     prepare_header1
+//*****************************************************************************
+BOOL
+prepare_header1()
+{
+	OutputDebugString(L"prepare_header1()\n");
+
+	float g_frequency_hz = g_oNote.aFreq[69];
+	float delta = 2.f * g_frequency_hz * float(M_PI / SAMPLE_RATE);
+	float phase = 0.f;
+	g_nBlock = SAMPLE_RATE / DATABLOCK_SIZE;
+	for (UINT32 i = 0; i < g_nBlock; i++)
+	{
+		g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
+
+		// NOISE
+		//for (int j = 0; j < DATABLOCK_SIZE; j++)
+		//{
+		//	g_fData[j] = 0x7F * g_float_dist(g_engine);
+		//	*((BYTE*)g_pPlaybackBuffer[i] + j) = g_fData[j];
+		//}
+		// PURE SINE WAVE
+		for (int j = 0; j < DATABLOCK_SIZE - 1; j += 2)
+		{
+			float next_sample = 0x7F * std::sin(phase);
+			phase = std::fmod(phase + delta, 2.f * static_cast<float>(M_PI));
+			*((BYTE*)g_pPlaybackBuffer[i] + j) = next_sample;
+			*((BYTE*)g_pPlaybackBuffer[i] + j + 1) = next_sample;
+		}
+
+		g_who[i] = new WAVEHDR;
+		g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
+		g_who[i]->dwBufferLength = DATABLOCK_SIZE;
+		g_who[i]->dwFlags = 0;
+		g_who[i]->dwLoops = 0;
+
+		waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
+	}
+	// start playing
+	g_cBufferOut = 0;
+	while (g_cBufferOut < g_nBlock)
+	{
+		waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
+	}
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     prepare_header2
+//*****************************************************************************
+BOOL
+prepare_header2()
+{
+	OutputDebugString(L"prepare_header2()\n");
+
+	// start playing
+	waveOutWrite(g_hwo, who, sizeof(WAVEHDR));
+
+	return EXIT_SUCCESS;
+}
+//BOOL
+//prepare_header2()
+//{
+//	OutputDebugString(L"prepare_header2()\n");
+//
+//	float frequency_hz = g_oNote.aFreq[69];
+//	UINT max_ringbuffer = round(SAMPLE_RATE / frequency_hz);
+//	std::vector<float> ringbuffer;
+//	ringbuffer.resize(max_ringbuffer);
+//	// initialize ring buffer with random values
+//	// -1.0 < value < 1.0
+//	for (UINT i = 0; i < max_ringbuffer; i++)
+//	{
+//		ringbuffer[i] = 2. * g_float_dist(g_engine) - 1.;
+//	}
+//	// synthesize Karplus-Strong waveform
+//	float value_feedback = 0.;
+//	for (UINT i = 0; i < max_ringbuffer - 1; i++)
+//	{
+//		value_feedback = .5 * (ringbuffer[i] + ringbuffer[i + 1]);
+//		// remove the first element of the ring_buffer
+//		ringbuffer.erase(ringbuffer.begin());
+//		ringbuffer.push_back(value_feedback);
+//	}
+//	// prepare Karplus-Strong waveform for audio play
+//	g_nBlock = round(frequency_hz);
+//	for (int i = 0; i < 440; i++)
+//	{
+//		// set Karplus-Strong waveform into a byte buffer
+//		g_pPlaybackBuffer[i] = new BYTE[2 * max_ringbuffer];
+//		UINT k = 0;
+//		for (UINT j = 0; j < max_ringbuffer; j++)
+//		{
+//			*((BYTE*)g_pPlaybackBuffer[i] + k) = 0x7F * ringbuffer[j];
+//			*((BYTE*)g_pPlaybackBuffer[i] + k + 1) = 0x7F * ringbuffer[j];
+//			k += 2;
+//		}
+//
+//		g_who[i] = new WAVEHDR;
+//		g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
+//		g_who[i]->dwBufferLength = 2 * max_ringbuffer;
+//		g_who[i]->dwFlags = 0;
+//		g_who[i]->dwLoops = 0;
+//
+//		waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
+//	}
+//
+//	return EXIT_SUCCESS;
+//}
+
+//*****************************************************************************
 //*                     audio_playback
 //*****************************************************************************
 DWORD WINAPI audio_playback(LPVOID lpVoid)
 {
-	float g_frequency_hz = g_oNote.aFreq[69];
-	float delta = 2.f * g_frequency_hz * float(M_PI / SAMPLE_RATE);
-	float phase = 0.f;
 	MSG msg;
 	while (GetMessage(&msg, nullptr, 0, 0))
 	{
@@ -123,40 +250,8 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 		{
 			OutputDebugString(L"audio_playback MM_WOM_OPEN\n");
 
-			g_nBlock = SAMPLE_RATE / DATABLOCK_SIZE;
-			for (UINT32 i = 0; i < g_nBlock; i++)
-			{
-				g_pPlaybackBuffer[i] = new BYTE[DATABLOCK_SIZE];
-
-				// NOISE
-				//for (int j = 0; j < DATABLOCK_SIZE; j++)
-				//{
-				//	g_fData[j] = 0x7F * g_float_dist(g_engine);
-				//	*((BYTE*)g_pPlaybackBuffer[i] + j) = g_fData[j];
-				//}
-				// PURE SINE WAVE
-				for (int j = 0; j < DATABLOCK_SIZE - 1; j += 2)
-				{
-					float next_sample = 0x7F * std::sin(phase);
-					phase = std::fmod(phase + delta, 2.f * static_cast<float>(M_PI));
-					*((BYTE*)g_pPlaybackBuffer[i] + j) = next_sample;
-					*((BYTE*)g_pPlaybackBuffer[i] + j + 1) = next_sample;
-				}
-
-				g_who[i] = new WAVEHDR;
-				g_who[i]->lpData = (LPSTR)g_pPlaybackBuffer[i];
-				g_who[i]->dwBufferLength = DATABLOCK_SIZE;
-				g_who[i]->dwFlags = 0;
-				g_who[i]->dwLoops = 0;
-
-				waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
-			}
-			// start playing
-			g_cBufferOut = 0;
-			while (g_cBufferOut < g_nBlock)
-			{
-				waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
-			}
+			prepare_header1();
+			//prepare_header2();
 
 			break;
 		} // eof MM_WOM_OPEN
@@ -230,8 +325,6 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
 	g_wfx.nAvgBytesPerSec = g_wfx.nSamplesPerSec * g_wfx.nBlockAlign;
 	g_wfx.cbSize = 0;
-
-	karplus_strong(g_oNote.aFreq[69]);
 
 	return EXIT_SUCCESS;
 }
