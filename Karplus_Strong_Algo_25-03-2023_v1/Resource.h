@@ -2,8 +2,9 @@
 #define SPEAKER_HEADPHONE			0
 
 #define DATABLOCK_SIZE				8192 // (bytes)
+#define MAX_DATABLOCK				7040 // max. freq. is A8 (7040.00 Hz)
 
-#define PITCH_STANDARD_HZ			440.f
+#define PITCH_STANDARD_HZ			440.f // A4 
 // do not use an apostrophe (48'000) in a RESOURCE.H file
 #define SAMPLE_RATE					48000
 
