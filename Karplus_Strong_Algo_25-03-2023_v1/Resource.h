@@ -10,6 +10,7 @@
 
 // test
 //#define MAX_RINGBUFFER				10
+#define CSTRINGG					6
 
 #define IDC_PLUCK					30000
 #define IDC_STRUM					30001

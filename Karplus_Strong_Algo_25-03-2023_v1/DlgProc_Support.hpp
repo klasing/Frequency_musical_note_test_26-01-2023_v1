@@ -58,15 +58,6 @@ enum nMidi
 };
 
 //****************************************************************************
-//*                     Guitar
-//****************************************************************************
-class Guitar
-{
-public:
-private:
-};
-
-//****************************************************************************
 //*                     extern
 //****************************************************************************
 extern HWND g_hDlg;
@@ -92,6 +83,112 @@ DWORD g_cBufferOut = 0;
 
 std::mt19937_64 g_engine;
 std::uniform_real_distribution<float> g_float_dist;
+
+//****************************************************************************
+//*                     StringG
+//****************************************************************************
+class StringG
+{
+public:
+	VOID init(nMidi f
+		, const float cSecondsToPlay
+	)  
+	{
+		frequency_hz = g_oNote.aFreq[f];
+		dwBlock = round(cSecondsToPlay * frequency_hz);
+		max_buffer = g_wfx.nBlockAlign * round(SAMPLE_RATE / frequency_hz);
+		vectorBuffer[0].resize(max_buffer);
+		ppPlaybackBuffer = new BYTE*[dwBlock];
+		for (int i = 0; i < dwBlock; i++)
+		{
+			ppPlaybackBuffer[i] = new BYTE[max_buffer];
+		}
+		// initialize first buffer with random values
+		// -1.0 < value < 1.0
+		for (int i = 0; i < max_buffer; i++)
+		{
+			vectorBuffer[0][i] = 2. * g_float_dist(g_engine) - 1.;
+			// transfer into playback buffer
+			ppPlaybackBuffer[0][i] = 0x7F * vectorBuffer[0][i];
+		}
+		// iterate over the following buffer and
+		// synthesize the Karplus-Strong waveform
+		float decay_factor = 0.980;
+		float previous_value = 0.;
+		for (int j = 1; j < dwBlock; j++)
+		{
+			vectorBuffer[j].resize(max_buffer);
+			ppPlaybackBuffer[j] = new BYTE[max_buffer];
+			for (int i = 0; i < max_buffer; i++)
+			{
+				vectorBuffer[j][i] = decay_factor
+					* .5 * (vectorBuffer[j - 1][i] + previous_value);
+				previous_value = vectorBuffer[j - 1][i];
+				// transfer into playback buffer
+				ppPlaybackBuffer[j][i] = 0x7F * vectorBuffer[j][i];
+			}
+		}
+	}
+//private:
+	float frequency_hz = 0.;
+	UINT max_buffer = 0;
+	DWORD dwBlock = 0;
+	std::vector<float> vectorBuffer[MAX_DATABLOCK]{};
+	BYTE** ppPlaybackBuffer{};
+};
+
+//****************************************************************************
+//*                     Guitar
+//****************************************************************************
+class Guitar
+{
+public:
+	Guitar()
+	{
+		stringgs[0].init(E, 1.5);
+		stringgs[1].init(A, 1.5);
+		stringgs[2].init(D, 1.5);
+		stringgs[3].init(G, 1.5);
+		stringgs[4].init(B, 1.5);
+		stringgs[5].init(e, 1.5);
+	}
+//private:
+	StringG stringgs[CSTRINGG];
+};
+
+//****************************************************************************
+//*                     globalEx
+//****************************************************************************
+Guitar g_oGuitar;
+
+//*****************************************************************************
+//*                     audio_playbackEx
+//*****************************************************************************
+BOOL
+pluck_prepare_headerEx(const int& nStringg)
+{
+	OutputDebugString(L"pluck_prepare_headerEx\n");
+
+	for (int i = 0; i < g_oGuitar.stringgs[nStringg].dwBlock; i++)
+	{
+		g_who[i] = new WAVEHDR;
+		g_who[i]->lpData = (LPSTR)g_oGuitar.stringgs[nStringg].ppPlaybackBuffer[i];
+		g_who[i]->dwBufferLength = g_oGuitar.stringgs[nStringg].max_buffer;
+		g_who[i]->dwFlags = 0;
+		g_who[i]->dwLoops = 0;
+		waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
+	}
+	g_nBlock = g_oGuitar.stringgs[nStringg].dwBlock;
+
+	// start playing
+	g_cBufferOut = 0;
+	while (g_cBufferOut < g_nBlock)
+	{
+		waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
+	}
+
+	return EXIT_SUCCESS;
+}
 
 //*****************************************************************************
 //*                     audio_playback
@@ -173,12 +270,13 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			// disable button IDC_PAUSE
 			EnableWindow(GetDlgItem(g_hDlg, IDC_PLUCK), FALSE);
 
-			pluck_prepare_header(g_oNote.aFreq[E]);
-			pluck_prepare_header(g_oNote.aFreq[A]);
-			pluck_prepare_header(g_oNote.aFreq[D]);
-			pluck_prepare_header(g_oNote.aFreq[G]);
-			pluck_prepare_header(g_oNote.aFreq[B]);
-			pluck_prepare_header(g_oNote.aFreq[e]);
+			pluck_prepare_headerEx(0); // 0 = E-string
+			//pluck_prepare_header(g_oNote.aFreq[E]);
+			//pluck_prepare_header(g_oNote.aFreq[A]);
+			//pluck_prepare_header(g_oNote.aFreq[D]);
+			//pluck_prepare_header(g_oNote.aFreq[G]);
+			//pluck_prepare_header(g_oNote.aFreq[B]);
+			//pluck_prepare_header(g_oNote.aFreq[e]);
 
 			break;
 		} // eof MM_WOM_OPEN
@@ -199,11 +297,11 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			OutputDebugString(L"audio_playback MM_WOM_CLOSE\n");
 
 			// clean up
-			for (int i = 0; i < g_nBlock; i++)
-			{
-				delete[] g_pPlaybackBuffer[i];
-			}
-			delete[] g_pPlaybackBuffer;
+			//for (int i = 0; i < g_nBlock; i++)
+			//{
+			//	delete[] g_pPlaybackBuffer[i];
+			//}
+			//delete[] g_pPlaybackBuffer;
 
 			// enable button IDC_PAUSE
 			EnableWindow(GetDlgItem(g_hDlg, IDC_PLUCK), TRUE);
