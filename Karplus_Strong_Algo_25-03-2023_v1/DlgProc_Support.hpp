@@ -84,6 +84,8 @@ DWORD g_cBufferOut = 0;
 std::mt19937_64 g_engine;
 std::uniform_real_distribution<float> g_float_dist;
 
+INT16 mode_play = 0;
+
 //****************************************************************************
 //*                     StringG
 //****************************************************************************
@@ -91,7 +93,8 @@ class StringG
 {
 public:
 	VOID init(nMidi f
-		, const float cSecondsToPlay
+		, const float& cSecondsToPlay
+		, const float& decay_factor
 	)  
 	{
 		frequency_hz = g_oNote.aFreq[f];
@@ -113,7 +116,7 @@ public:
 		}
 		// iterate over the following buffer and
 		// synthesize the Karplus-Strong waveform
-		float decay_factor = 0.980;
+		//float decay_factor = 0.980;
 		float previous_value = 0.;
 		for (int j = 1; j < dwBlock; j++)
 		{
@@ -143,17 +146,17 @@ public:
 class Guitar
 {
 public:
-	Guitar()
+	VOID init()
 	{
-		stringgs[0].init(E, 1.5);
-		stringgs[1].init(A, 1.5);
-		stringgs[2].init(D, 1.5);
-		stringgs[3].init(G, 1.5);
-		stringgs[4].init(B, 1.5);
-		stringgs[5].init(e, 1.5);
+		aoStringg[0].init(E, 1.0, 0.980);
+		aoStringg[1].init(A, 1.0, 0.982);
+		aoStringg[2].init(D, 1.0, 0.984);
+		aoStringg[3].init(G, 1.0, 0.986);
+		aoStringg[4].init(B, 1.0, 0.988);
+		aoStringg[5].init(e, 1.0, 0.992);
 	}
 //private:
-	StringG stringgs[CSTRINGG];
+	StringG aoStringg[CSTRINGG];
 };
 
 //****************************************************************************
@@ -162,23 +165,23 @@ public:
 Guitar g_oGuitar;
 
 //*****************************************************************************
-//*                     audio_playbackEx
+//*                     pluck_prepare_headerEx
 //*****************************************************************************
 BOOL
 pluck_prepare_headerEx(const int& nStringg)
 {
 	OutputDebugString(L"pluck_prepare_headerEx\n");
 
-	for (int i = 0; i < g_oGuitar.stringgs[nStringg].dwBlock; i++)
+	for (int i = 0; i < g_oGuitar.aoStringg[nStringg].dwBlock; i++)
 	{
 		g_who[i] = new WAVEHDR;
-		g_who[i]->lpData = (LPSTR)g_oGuitar.stringgs[nStringg].ppPlaybackBuffer[i];
-		g_who[i]->dwBufferLength = g_oGuitar.stringgs[nStringg].max_buffer;
+		g_who[i]->lpData = (LPSTR)g_oGuitar.aoStringg[nStringg].ppPlaybackBuffer[i];
+		g_who[i]->dwBufferLength = g_oGuitar.aoStringg[nStringg].max_buffer;
 		g_who[i]->dwFlags = 0;
 		g_who[i]->dwLoops = 0;
 		waveOutPrepareHeader(g_hwo, g_who[i], sizeof(WAVEHDR));
 	}
-	g_nBlock = g_oGuitar.stringgs[nStringg].dwBlock;
+	g_nBlock = g_oGuitar.aoStringg[nStringg].dwBlock;
 
 	// start playing
 	g_cBufferOut = 0;
@@ -191,60 +194,237 @@ pluck_prepare_headerEx(const int& nStringg)
 }
 
 //*****************************************************************************
-//*                     audio_playback
+//*                     pluck_prepare_header
+//*****************************************************************************
+//BOOL
+//pluck_prepare_header(const float& frequency_hz)
+//{
+//	OutputDebugString(L"pluck_prepare_header\n");
+//
+//	float nofOfSecondToPlay = 1.5;
+//	// g_wfx.nBlockAlign: nof bytes per sample = 4
+//	UINT max_buffer = g_wfx.nBlockAlign * round(SAMPLE_RATE / frequency_hz);
+//	g_nBlock = round(nofOfSecondToPlay * frequency_hz);
+//
+//	// initialize first buffer with random values
+//	// -1.0 < value < 1.0
+//	g_pVectorBuffer[0].resize(max_buffer);
+//	g_pPlaybackBuffer = new BYTE*[MAX_DATABLOCK];
+//	g_pPlaybackBuffer[0] = new BYTE[max_buffer];
+//	for (UINT i = 0; i < max_buffer; i++)
+//	{
+//		g_pVectorBuffer[0][i] = 2. * g_float_dist(g_engine) - 1.;
+//		g_pPlaybackBuffer[0][i] = 0x7F * g_pVectorBuffer[0][i];
+//	}
+//	g_who[0] = new WAVEHDR;
+//	g_who[0]->lpData = (LPSTR)g_pPlaybackBuffer[0];
+//	g_who[0]->dwBufferLength = max_buffer;
+//	g_who[0]->dwFlags = 0;
+//	g_who[0]->dwLoops = 0;
+//	waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
+//
+//	// iterate over the following buffer and
+//	// synthesize the Karplus-Strong waveform
+//	float decay_factor = 0.980;
+//	float previous_value = 0.;
+//	for (int j = 1; j < g_nBlock; j++)
+//	{
+//		g_pVectorBuffer[j].resize(max_buffer);
+//		g_pPlaybackBuffer[j] = new BYTE[max_buffer];
+//		for (UINT i = 0; i < max_buffer; i++)
+//		{
+//			g_pVectorBuffer[j][i] = decay_factor
+//				* .5 * (g_pVectorBuffer[j - 1][i] + previous_value);
+//			previous_value = g_pVectorBuffer[j - 1][i];
+//			g_pPlaybackBuffer[j][i] = 0x7F * g_pVectorBuffer[j][i];
+//		}
+//		g_who[j] = new WAVEHDR;
+//		g_who[j]->lpData = (LPSTR)g_pPlaybackBuffer[j];
+//		g_who[j]->dwBufferLength = max_buffer;
+//		g_who[j]->dwFlags = 0;
+//		g_who[j]->dwLoops = 0;
+//		waveOutPrepareHeader(g_hwo, g_who[j], sizeof(WAVEHDR));
+//	}
+//
+//	// start playing
+//	g_cBufferOut = 0;
+//	while (g_cBufferOut < g_nBlock)
+//	{
+//		waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
+//	}
+//
+//	return EXIT_SUCCESS;
+//}
+
+//*****************************************************************************
+//*                     strum_prepare_headerEx
 //*****************************************************************************
 BOOL
-pluck_prepare_header(const float& frequency_hz)
+strum_prepare_headerEx()
 {
-	OutputDebugString(L"pluck_prepare_header\n");
+	OutputDebugString(L"strum_prepare_headerEx\n");
 
-	float nofOfSecondToPlay = 1.5;
-	// g_wfx.nBlockAlign: nof bytes per sample = 4
-	UINT max_buffer = g_wfx.nBlockAlign * round(SAMPLE_RATE / frequency_hz);
-	g_nBlock = round(nofOfSecondToPlay * frequency_hz);
-
-	// initialize first buffer with random values
-	// -1.0 < value < 1.0
-	g_pVectorBuffer[0].resize(max_buffer);
-	g_pPlaybackBuffer = new BYTE*[MAX_DATABLOCK];
-	g_pPlaybackBuffer[0] = new BYTE[max_buffer];
-	for (UINT i = 0; i < max_buffer; i++)
+	UINT rate_strum = 9400;
+	DWORD dwBufferLength = 0;
+	for (int i = 0; i < CSTRINGG; i++)
 	{
-		g_pVectorBuffer[0][i] = 2. * g_float_dist(g_engine) - 1.;
-		g_pPlaybackBuffer[0][i] = 0x7F * g_pVectorBuffer[0][i];
+		// find max
+		if (g_oGuitar.aoStringg[i].dwBlock
+			* g_oGuitar.aoStringg[i].max_buffer 
+			+ i * rate_strum > dwBufferLength)
+		{
+			dwBufferLength = g_oGuitar.aoStringg[i].dwBlock
+				* g_oGuitar.aoStringg[i].max_buffer
+				+ i * rate_strum;
+		}
+	}
+	BYTE* pPlaybackBuffer = new BYTE[dwBufferLength];
+	// E-string
+	for (int j = 0; j < g_oGuitar.aoStringg[0].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[0].max_buffer; i++)
+		{
+			pPlaybackBuffer[j * g_oGuitar.aoStringg[0].max_buffer + i] =
+				g_oGuitar.aoStringg[0].ppPlaybackBuffer[j][i];
+		}
+	}
+	// A-string
+	for (int j = 0; j < g_oGuitar.aoStringg[1].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[1].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[1].max_buffer + i) + rate_strum] +=
+				g_oGuitar.aoStringg[1].ppPlaybackBuffer[j][i];
+		}
+	}
+	// D-string
+	for (int j = 0; j < g_oGuitar.aoStringg[2].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[2].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[2].max_buffer + i) + 2 * rate_strum] +=
+				g_oGuitar.aoStringg[2].ppPlaybackBuffer[j][i];
+		}
+	}
+	// G-string
+	for (int j = 0; j < g_oGuitar.aoStringg[3].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[3].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[3].max_buffer + i) + 3 * rate_strum] +=
+				g_oGuitar.aoStringg[3].ppPlaybackBuffer[j][i];
+		}
+	}
+	// B-string
+	for (int j = 0; j < g_oGuitar.aoStringg[4].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[4].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[4].max_buffer + i) + 4 * rate_strum] +=
+				g_oGuitar.aoStringg[4].ppPlaybackBuffer[j][i];
+		}
+	}
+	// e-string
+	for (int j = 0; j < g_oGuitar.aoStringg[5].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[5].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[5].max_buffer + i) + 5 * rate_strum] +=
+				g_oGuitar.aoStringg[5].ppPlaybackBuffer[j][i];
+		}
 	}
 	g_who[0] = new WAVEHDR;
-	g_who[0]->lpData = (LPSTR)g_pPlaybackBuffer[0];
-	g_who[0]->dwBufferLength = max_buffer;
+	g_who[0]->lpData = (LPSTR)pPlaybackBuffer;
+	g_who[0]->dwBufferLength = dwBufferLength;
 	g_who[0]->dwFlags = 0;
 	g_who[0]->dwLoops = 0;
 	waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
 
-	// iterate over the following buffer and
-	// synthesize the Karplus-Strong waveform
-	float decay_factor = 0.980;
-	float previous_value = 0.;
-	for (int j = 1; j < g_nBlock; j++)
+	// start playing
+	g_cBufferOut = 0;
+	g_nBlock = 1;
+	while (g_cBufferOut < g_nBlock)
 	{
-		g_pVectorBuffer[j].resize(max_buffer);
-		g_pPlaybackBuffer[j] = new BYTE[max_buffer];
-		for (UINT i = 0; i < max_buffer; i++)
-		{
-			g_pVectorBuffer[j][i] = decay_factor
-				* .5 * (g_pVectorBuffer[j - 1][i] + previous_value);
-			previous_value = g_pVectorBuffer[j - 1][i];
-			g_pPlaybackBuffer[j][i] = 0x7F * g_pVectorBuffer[j][i];
-		}
-		g_who[j] = new WAVEHDR;
-		g_who[j]->lpData = (LPSTR)g_pPlaybackBuffer[j];
-		g_who[j]->dwBufferLength = max_buffer;
-		g_who[j]->dwFlags = 0;
-		g_who[j]->dwLoops = 0;
-		waveOutPrepareHeader(g_hwo, g_who[j], sizeof(WAVEHDR));
+		waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
 	}
+
+	// clean up
+	//delete[] pPlaybackBuffer;
+	//pPlaybackBuffer = nullptr;
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     strum_prepare_header
+//*****************************************************************************
+BOOL
+strum_prepare_header()
+{
+	OutputDebugString(L"strum_prepare_header\n");
+
+	UINT rate_strum = 9600;
+	DWORD dwBufferLength = 4 * (g_oGuitar.aoStringg[5].dwBlock
+		* g_oGuitar.aoStringg[5].max_buffer);
+	BYTE* pPlaybackBuffer = new BYTE[dwBufferLength];
+	for (int j = 0; j < g_oGuitar.aoStringg[0].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[0].max_buffer; i++)
+		{
+			pPlaybackBuffer[j * g_oGuitar.aoStringg[0].max_buffer + i] =
+				g_oGuitar.aoStringg[0].ppPlaybackBuffer[j][i];
+		}
+	}
+	for (int j = 0; j < g_oGuitar.aoStringg[1].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[1].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[1].max_buffer + i) + rate_strum] +=
+				g_oGuitar.aoStringg[1].ppPlaybackBuffer[j][i];
+		}
+	}
+	for (int j = 0; j < g_oGuitar.aoStringg[2].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[2].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[2].max_buffer + i) + 2 * rate_strum] +=
+				g_oGuitar.aoStringg[2].ppPlaybackBuffer[j][i];
+		}
+	}
+	for (int j = 0; j < g_oGuitar.aoStringg[3].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[3].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[3].max_buffer + i) + 3 * rate_strum] +=
+				g_oGuitar.aoStringg[3].ppPlaybackBuffer[j][i];
+		}
+	}
+	for (int j = 0; j < g_oGuitar.aoStringg[4].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[4].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[4].max_buffer + i) + 4 * rate_strum] +=
+				g_oGuitar.aoStringg[4].ppPlaybackBuffer[j][i];
+		}
+	}
+	for (int j = 0; j < g_oGuitar.aoStringg[5].dwBlock; j++)
+	{
+		for (int i = 0; i < g_oGuitar.aoStringg[5].max_buffer; i++)
+		{
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[5].max_buffer + i) + 5 * rate_strum] +=
+				g_oGuitar.aoStringg[5].ppPlaybackBuffer[j][i];
+		}
+	}
+	g_who[0] = new WAVEHDR;
+	g_who[0]->lpData = (LPSTR)pPlaybackBuffer;
+	g_who[0]->dwBufferLength = dwBufferLength;
+	g_who[0]->dwFlags = 0;
+	g_who[0]->dwLoops = 0;
+	waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
 
 	// start playing
 	g_cBufferOut = 0;
+	g_nBlock = 1;
 	while (g_cBufferOut < g_nBlock)
 	{
 		waveOutWrite(g_hwo, g_who[g_cBufferOut++], sizeof(WAVEHDR));
@@ -258,25 +438,43 @@ pluck_prepare_header(const float& frequency_hz)
 //*****************************************************************************
 DWORD WINAPI audio_playback(LPVOID lpVoid)
 {
+	BOOL bRet;
 	MSG msg;
-	while (GetMessage(&msg, nullptr, 0, 0))
+	while ((bRet = GetMessage(&msg, nullptr, 0, 0)) != 0)
 	{
+		// if bRet == -1: handle error
 		switch (msg.message)
 		{
 		case MM_WOM_OPEN:
 		{
 			OutputDebugString(L"audio_playback MM_WOM_OPEN\n");
 
-			// disable button IDC_PAUSE
-			EnableWindow(GetDlgItem(g_hDlg, IDC_PLUCK), FALSE);
+			if (mode_play == IDC_PLUCK)
+			{
+				// disable button IDC_PAUSE
+				EnableWindow(GetDlgItem(g_hDlg, IDC_PLUCK), FALSE);
 
-			pluck_prepare_headerEx(0); // 0 = E-string
-			//pluck_prepare_header(g_oNote.aFreq[E]);
-			//pluck_prepare_header(g_oNote.aFreq[A]);
-			//pluck_prepare_header(g_oNote.aFreq[D]);
-			//pluck_prepare_header(g_oNote.aFreq[G]);
-			//pluck_prepare_header(g_oNote.aFreq[B]);
-			//pluck_prepare_header(g_oNote.aFreq[e]);
+				pluck_prepare_headerEx(0); // 0 = E-string
+				pluck_prepare_headerEx(1); // 1 = A-string
+				pluck_prepare_headerEx(2); // 2 = D-string
+				pluck_prepare_headerEx(3); // 3 = G-string
+				pluck_prepare_headerEx(4); // 4 = B-string
+				pluck_prepare_headerEx(5); // 5 = e-string
+				//pluck_prepare_header(g_oNote.aFreq[E]);
+				//pluck_prepare_header(g_oNote.aFreq[A]);
+				//pluck_prepare_header(g_oNote.aFreq[D]);
+				//pluck_prepare_header(g_oNote.aFreq[G]);
+				//pluck_prepare_header(g_oNote.aFreq[B]);
+				//pluck_prepare_header(g_oNote.aFreq[e]);
+			}
+			if (mode_play == IDC_STRUM)
+			{
+				// disable button IDC_PAUSE
+				EnableWindow(GetDlgItem(g_hDlg, IDC_STRUM), FALSE);
+
+				strum_prepare_headerEx();
+				//strum_prepare_header();
+			}
 
 			break;
 		} // eof MM_WOM_OPEN
@@ -303,8 +501,12 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 			//}
 			//delete[] g_pPlaybackBuffer;
 
-			// enable button IDC_PAUSE
-			EnableWindow(GetDlgItem(g_hDlg, IDC_PLUCK), TRUE);
+			if (mode_play == IDC_PLUCK)
+				// enable button IDC_PLUCK
+				EnableWindow(GetDlgItem(g_hDlg, IDC_PLUCK), TRUE);
+			if (mode_play == IDC_STRUM)
+				// enable button IDC_STRUM
+				EnableWindow(GetDlgItem(g_hDlg, IDC_STRUM), TRUE);
 
 			// let this thread die
 			return 0;
@@ -360,6 +562,8 @@ BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
 	g_wfx.nBlockAlign = g_wfx.nChannels * g_wfx.wBitsPerSample / 8;
 	g_wfx.nAvgBytesPerSec = g_wfx.nSamplesPerSec * g_wfx.nBlockAlign;
 	g_wfx.cbSize = 0;
+
+	g_oGuitar.init();
 
 	return EXIT_SUCCESS;
 }
@@ -419,6 +623,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	{
 		OutputDebugString(L"IDC_PLUCK\n");
 
+		mode_play = IDC_PLUCK;
 		start_audio_playback();
 
 		return (INT_PTR)TRUE;
@@ -426,6 +631,9 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 	case IDC_STRUM:
 	{
 		OutputDebugString(L"IDC_STRUM\n");
+
+		mode_play = IDC_STRUM;
+		start_audio_playback();
 
 		return (INT_PTR)TRUE;
 	} // eof IDC_STRUM
