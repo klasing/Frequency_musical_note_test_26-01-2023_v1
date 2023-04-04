@@ -155,8 +155,105 @@ public:
 		aoStringg[4].init(B, 1.0, 0.988);
 		aoStringg[5].init(e, 1.0, 0.992);
 	}
+	VOID strum_prepare_header(const BOOL& bDownStrum
+		, const UINT& rate_strum
+	)
+	{
+		OutputDebugString(L"g_oGuiter.strum_prepare_header()\n");
+		int aSeqString[6]{};
+		if (bDownStrum)
+		{
+			aSeqString[0] = 0;
+			aSeqString[1] = 1;
+			aSeqString[2] = 2;
+			aSeqString[3] = 3;
+			aSeqString[4] = 4;
+			aSeqString[5] = 5;
+		}
+		else
+		{
+			aSeqString[0] = 5;
+			aSeqString[1] = 4;
+			aSeqString[2] = 3;
+			aSeqString[3] = 2;
+			aSeqString[4] = 1;
+			aSeqString[5] = 0;
+
+		}
+		
+		for (int i = 0; i < CSTRINGG; i++)
+		{
+			// find max
+			if (aoStringg[i].dwBlock
+				* aoStringg[i].max_buffer
+				+ i * rate_strum > dwStrumBufferLength)
+			{
+				dwStrumBufferLength = aoStringg[i].dwBlock
+					* aoStringg[i].max_buffer
+					+ i * rate_strum;
+			}
+		}
+		pStrumBuffer = new BYTE[dwStrumBufferLength];
+
+		// E-string
+		for (int j = 0; j < aoStringg[0].dwBlock; j++)
+		{
+			for (int i = 0; i < aoStringg[0].max_buffer; i++)
+			{
+				pStrumBuffer[(j * aoStringg[0].max_buffer + i) + aSeqString[0] * rate_strum] =
+					aoStringg[0].ppPlaybackBuffer[j][i];
+			}
+		}
+		// A-string
+		for (int j = 0; j <aoStringg[1].dwBlock; j++)
+		{
+			for (int i = 0; i < aoStringg[1].max_buffer; i++)
+			{
+				pStrumBuffer[(j * aoStringg[1].max_buffer + i) + aSeqString[1] * rate_strum] +=
+					aoStringg[1].ppPlaybackBuffer[j][i];
+			}
+		}
+		// D-string
+		for (int j = 0; j <aoStringg[2].dwBlock; j++)
+		{
+			for (int i = 0; i < aoStringg[2].max_buffer; i++)
+			{
+				pStrumBuffer[(j * aoStringg[2].max_buffer + i) + aSeqString[2] * rate_strum] +=
+					aoStringg[2].ppPlaybackBuffer[j][i];
+			}
+		}
+		// G-string
+		for (int j = 0; j < aoStringg[3].dwBlock; j++)
+		{
+			for (int i = 0; i < aoStringg[3].max_buffer; i++)
+			{
+				pStrumBuffer[(j *aoStringg[3].max_buffer + i) + aSeqString[3] * rate_strum] +=
+					aoStringg[3].ppPlaybackBuffer[j][i];
+			}
+		}
+		// B-string
+		for (int j = 0; j < aoStringg[4].dwBlock; j++)
+		{
+			for (int i = 0; i < aoStringg[4].max_buffer; i++)
+			{
+				pStrumBuffer[(j * aoStringg[4].max_buffer + i) + aSeqString[4] * rate_strum] +=
+					aoStringg[4].ppPlaybackBuffer[j][i];
+			}
+		}
+		// e-string
+		for (int j = 0; j < aoStringg[5].dwBlock; j++)
+		{
+			for (int i = 0; i < aoStringg[5].max_buffer; i++)
+			{
+				pStrumBuffer[(j * aoStringg[5].max_buffer + i) + aSeqString[5] * rate_strum] +=
+					aoStringg[5].ppPlaybackBuffer[j][i];
+			}
+		}
+	}
 //private:
 	StringG aoStringg[CSTRINGG];
+	BYTE* pStrumBuffer = nullptr;
+	DWORD dwStrumBufferLength = 0;
 };
 
 //****************************************************************************
@@ -256,15 +353,45 @@ pluck_prepare_headerEx(const int& nStringg)
 //	return EXIT_SUCCESS;
 //}
 
+	//g_oGuitar.strum_prepare_header(TRUE, 9400);
+
+	//g_who[0] = new WAVEHDR;
+	//g_who[0]->lpData = (LPSTR)g_oGuitar.pStrumBuffer;
+	//g_who[0]->dwBufferLength = g_oGuitar.dwStrumBufferLength;
+	//g_who[0]->dwFlags = 0;
+	//g_who[0]->dwLoops = 0;
+	//waveOutPrepareHeader(g_hwo, g_who[0], sizeof(WAVEHDR));
+
 //*****************************************************************************
 //*                     strum_prepare_headerEx
 //*****************************************************************************
 BOOL
-strum_prepare_headerEx()
+strum_prepare_headerEx(const BOOL bDownStrum, const UINT& rate_strum)
 {
 	OutputDebugString(L"strum_prepare_headerEx\n");
 
-	UINT rate_strum = 9400;
+	UINT aSequence[CSTRINGG]{};
+	if (bDownStrum)
+	{
+		aSequence[0] = 0;
+		aSequence[1] = 1;
+		aSequence[2] = 2;
+		aSequence[3] = 3;
+		aSequence[4] = 4;
+		aSequence[5] = 5;
+	}
+	else
+	{
+		aSequence[0] = 5;
+		aSequence[1] = 4;
+		aSequence[2] = 3;
+		aSequence[3] = 2;
+		aSequence[4] = 1;
+		aSequence[5] = 0;
+
+	}
+	//UINT aSequence[CSTRINGG] = { 5,4,3,2,1,0 };
+	//UINT aSequence[CSTRINGG] = {0,1,2,3,4,5};
 	DWORD dwBufferLength = 0;
 	for (int i = 0; i < CSTRINGG; i++)
 	{
@@ -284,7 +411,7 @@ strum_prepare_headerEx()
 	{
 		for (int i = 0; i < g_oGuitar.aoStringg[0].max_buffer; i++)
 		{
-			pPlaybackBuffer[j * g_oGuitar.aoStringg[0].max_buffer + i] =
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[0].max_buffer + i) + aSequence[0] * rate_strum] =
 				g_oGuitar.aoStringg[0].ppPlaybackBuffer[j][i];
 		}
 	}
@@ -293,7 +420,7 @@ strum_prepare_headerEx()
 	{
 		for (int i = 0; i < g_oGuitar.aoStringg[1].max_buffer; i++)
 		{
-			pPlaybackBuffer[(j * g_oGuitar.aoStringg[1].max_buffer + i) + rate_strum] +=
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[1].max_buffer + i) + aSequence[1] * rate_strum] +=
 				g_oGuitar.aoStringg[1].ppPlaybackBuffer[j][i];
 		}
 	}
@@ -302,7 +429,7 @@ strum_prepare_headerEx()
 	{
 		for (int i = 0; i < g_oGuitar.aoStringg[2].max_buffer; i++)
 		{
-			pPlaybackBuffer[(j * g_oGuitar.aoStringg[2].max_buffer + i) + 2 * rate_strum] +=
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[2].max_buffer + i) + aSequence[2] * rate_strum] +=
 				g_oGuitar.aoStringg[2].ppPlaybackBuffer[j][i];
 		}
 	}
@@ -311,7 +438,7 @@ strum_prepare_headerEx()
 	{
 		for (int i = 0; i < g_oGuitar.aoStringg[3].max_buffer; i++)
 		{
-			pPlaybackBuffer[(j * g_oGuitar.aoStringg[3].max_buffer + i) + 3 * rate_strum] +=
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[3].max_buffer + i) + aSequence[3] * rate_strum] +=
 				g_oGuitar.aoStringg[3].ppPlaybackBuffer[j][i];
 		}
 	}
@@ -320,7 +447,7 @@ strum_prepare_headerEx()
 	{
 		for (int i = 0; i < g_oGuitar.aoStringg[4].max_buffer; i++)
 		{
-			pPlaybackBuffer[(j * g_oGuitar.aoStringg[4].max_buffer + i) + 4 * rate_strum] +=
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[4].max_buffer + i) + aSequence[4] * rate_strum] +=
 				g_oGuitar.aoStringg[4].ppPlaybackBuffer[j][i];
 		}
 	}
@@ -329,7 +456,7 @@ strum_prepare_headerEx()
 	{
 		for (int i = 0; i < g_oGuitar.aoStringg[5].max_buffer; i++)
 		{
-			pPlaybackBuffer[(j * g_oGuitar.aoStringg[5].max_buffer + i) + 5 * rate_strum] +=
+			pPlaybackBuffer[(j * g_oGuitar.aoStringg[5].max_buffer + i) + aSequence[5] * rate_strum] +=
 				g_oGuitar.aoStringg[5].ppPlaybackBuffer[j][i];
 		}
 	}
@@ -472,7 +599,8 @@ DWORD WINAPI audio_playback(LPVOID lpVoid)
 				// disable button IDC_PAUSE
 				EnableWindow(GetDlgItem(g_hDlg, IDC_STRUM), FALSE);
 
-				strum_prepare_headerEx();
+				strum_prepare_headerEx(TRUE, 18800);
+				strum_prepare_headerEx(FALSE, 18800);
 				//strum_prepare_header();
 			}
 
