@@ -721,7 +721,6 @@ BOOL onWmPaint_DlgProc(const HWND& hDlg
 
 	Graphics graphics(hdc);
 	Pen      pen(Color(0xFF, 0, 0, 0));
-	graphics.DrawLine(&pen, 35, 15, 35, 160);
 
 	graphics.DrawLine(&pen, 35, 20, 500, 20);
 	graphics.DrawLine(&pen, 35, 45, 500, 45);
@@ -729,6 +728,23 @@ BOOL onWmPaint_DlgProc(const HWND& hDlg
 	graphics.DrawLine(&pen, 35, 95, 500, 95);
 	graphics.DrawLine(&pen, 35, 120, 500, 120);
 	graphics.DrawLine(&pen, 35, 145, 500, 145);
+
+	int xvl = 35, xl = 45, yl = 0;
+	for (int i = 0; i < 13; i++)
+	{
+		graphics.DrawLine(&pen, xvl, 15, xvl, 160);
+		yl = 12;
+		for (int j = 0; j < CSTRINGG; j++)
+		{
+			Ellipse(hdc, xl, yl, xl + 16, yl + 16);
+			yl += 25;
+		}
+		xl += 35;
+		xvl += 35;
+	}
+
+	//Ellipse(hdc, 45, 12, 61, 28);
+	//Ellipse(hdc, 45, 37, 61, 53);
 
 	EndPaint(hDlg, &ps);
 
