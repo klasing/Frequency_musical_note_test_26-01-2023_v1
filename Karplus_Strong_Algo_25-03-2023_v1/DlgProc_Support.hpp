@@ -1,5 +1,160 @@
 #pragma once
 //*****************************************************************************
+//*                     include
+//*****************************************************************************
+#include "framework.h"
+#include "Karplus_Strong_Algo_25-03-2023_v1.h"
+
+//****************************************************************************
+//*                     global
+//****************************************************************************
+int aIdxNoteOpenStringg[NOF_STRING_GUITAR] = { 4, 11, 7, 2, 9, 4 };
+WCHAR wchOctave[NOF_NOTE_OCTAVE] = { 'C', ' ', 'D', ' ', 'E', 'F', ' ', 'G', ' ', 'A', ' ', 'B' };
+HFONT g_hFont = CreateFont(12	// cHeight
+	, 0							// cWidth
+	, 0							// cEscapement
+	, 0							// cOrientation
+	, FW_DONTCARE				// cWeight
+	, FALSE						// bItalic
+	, FALSE						// bUnderline
+	, FALSE						// bStrikeOut
+	, DEFAULT_CHARSET			// iCharSet
+	, OUT_OUTLINE_PRECIS		// iOutPrecision
+	, CLIP_DEFAULT_PRECIS		// iClipPrecision
+	, CLEARTYPE_QUALITY			// iQuality
+	, VARIABLE_PITCH			// iPitchAndFamily
+	, NULL						// pszFaceName
+);
+
+//*****************************************************************************
+//*                     onWmInitDialog_DlgProc
+//*****************************************************************************
+BOOL onWmInitDialog_DlgProc(const HINSTANCE& hInst
+	, const HWND& hDlg
+)
+{
+	OutputDebugString(L"onWmInitDialog_DlgProc\n");
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmSize_DlgProc
+//*****************************************************************************
+BOOL onWmSize_DlgProc(const HWND& hDlg
+)
+{
+	OutputDebugString(L"onWmSize_DlgProc\n");
+
+	return EXIT_SUCCESS;
+}
+
+//*****************************************************************************
+//*                     onWmCommand_DlgProc
+//*****************************************************************************
+INT_PTR onWmCommand_DlgProc(const HWND& hDlg
+	, const WPARAM& wParam
+	, const LPARAM& lParam
+)
+{
+	OutputDebugString(L"onWmCommand_DlgProc()\n");
+
+	switch (LOWORD(wParam))
+	{
+	case IDC_PLUCK:
+	{
+		OutputDebugString(L"IDC_PLUCK\n");
+
+		return (INT_PTR)TRUE;
+	} // eof IDC_PLUCK
+	case IDC_STRUM:
+	{
+
+		return (INT_PTR)TRUE;
+	} // eof IDC_STRUM
+	} // eof switch
+
+	return (INT_PTR)FALSE;
+}
+
+//*****************************************************************************
+//*                     onWmPaint_DlgProc
+//*****************************************************************************
+BOOL onWmPaint_DlgProc(const HWND& hDlg
+)
+{
+	OutputDebugString(L"onWmPaint_DlgProc\n");
+
+	PAINTSTRUCT ps;
+	HDC hdc = BeginPaint(hDlg, &ps);
+	// TODO: Add any drawing code that uses hdc here...
+
+	Graphics graphics(hdc);
+	Pen      pen(Color(0xFF, 0, 0, 0));
+
+	// horizontal line, representing guitar string
+	int y = 20;
+	for (int i = 0; i < NOF_STRING_GUITAR; i++)
+	{
+		graphics.DrawLine(&pen, 35, y, 500, y);
+		y += 25;
+	}
+	// vertical line, representing fret on guitar
+	// circle around note
+	int x_vert_line = 35, y_top_circle = 0;
+	for (int i = 0; i < NOF_NOTE_OCTAVE; i++)
+	{
+		// represent fret on guitar
+		graphics.DrawLine(&pen, x_vert_line, 15, x_vert_line, 160);
+		y_top_circle = 12;
+		for (int j = 0; j < NOF_STRING_GUITAR; j++)
+		{
+			// draw circle around note
+			Ellipse(hdc
+				, x_vert_line + 10
+				, y_top_circle
+				, x_vert_line + 26
+				, y_top_circle + 16
+			);
+			y_top_circle += 25;
+		}
+		x_vert_line += 35;
+	}
+	// set letter in circle, representing the note on a string
+	// at a fret position
+	std::wstring wstr = L" ";
+	SelectObject(hdc, g_hFont);
+	RECT rect;
+	rect.left = 45;
+	rect.top = 12 + 2;
+	rect.right = rect.left + 16;
+	rect.bottom = rect.top + 16;
+	for (int i = 0; i < 12; i++)
+	{
+		rect.top = 12 + 2;
+		rect.bottom = rect.top + 16;
+		for (int j = 0; j < NOF_STRING_GUITAR; j++)
+		{
+			wstr[0] = wchOctave[++aIdxNoteOpenStringg[j] % NOF_NOTE_OCTAVE];
+			if (wstr[0] != L' ')
+			{
+				DrawText(hdc, (LPCWSTR)wstr.c_str(), 1, &rect, DT_CENTER);
+			}
+			rect.top += 23 + 2;
+			rect.bottom = rect.top + 16;
+		}
+		rect.left += 35;
+		rect.right = rect.left + 16;
+	}
+
+	EndPaint(hDlg, &ps);
+
+	return EXIT_SUCCESS;
+}
+
+// waste //////////////////////////////////////////////////////////////////////
+/*
+//*****************************************************************************
 //*                     note
 //*
 //* the A string of a guitar is normally tuned to 110 Hz (A midi# 45)
@@ -707,6 +862,27 @@ BOOL onWmSize_DlgProc(const HWND& hDlg
 	return EXIT_SUCCESS;
 }
 
+//****************************************************************************
+//*                     globalEx
+//****************************************************************************
+int aIdxNoteOnStringg[CSTRINGG] = { 4, 11, 7, 2, 9, 4 };
+WCHAR wchOctave[12] = { 'C', ' ', 'D', ' ', 'E', 'F', ' ', 'G', ' ', 'A', ' ', 'B' };
+HFONT hFont = CreateFont(12	// cHeight
+	, 0						// cWidth
+	, 0						// cEscapement
+	, 0						// cOrientation
+	, FW_DONTCARE			// cWeight
+	, FALSE					// bItalic
+	, FALSE					// bUnderline
+	, FALSE					// bStrikeOut
+	, DEFAULT_CHARSET		// iCharSet
+	, OUT_OUTLINE_PRECIS	// iOutPrecision
+	, CLIP_DEFAULT_PRECIS	// iClipPrecision
+	, CLEARTYPE_QUALITY		// iQuality
+	, VARIABLE_PITCH		// iPitchAndFamily
+	, NULL					// pszFaceName
+);
+
 //*****************************************************************************
 //*                     onWmPaint_DlgProc
 //*****************************************************************************
@@ -722,6 +898,7 @@ BOOL onWmPaint_DlgProc(const HWND& hDlg
 	Graphics graphics(hdc);
 	Pen      pen(Color(0xFF, 0, 0, 0));
 
+	// represent guitar string
 	graphics.DrawLine(&pen, 35, 20, 500, 20);
 	graphics.DrawLine(&pen, 35, 45, 500, 45);
 	graphics.DrawLine(&pen, 35, 70, 500, 70);
@@ -730,12 +907,14 @@ BOOL onWmPaint_DlgProc(const HWND& hDlg
 	graphics.DrawLine(&pen, 35, 145, 500, 145);
 
 	int xvl = 35, xl = 45, yl = 0;
-	for (int i = 0; i < 13; i++)
+	for (int i = 0; i < 12; i++)
 	{
+		// represent fret on guitar
 		graphics.DrawLine(&pen, xvl, 15, xvl, 160);
 		yl = 12;
 		for (int j = 0; j < CSTRINGG; j++)
 		{
+			// draw circle around note
 			Ellipse(hdc, xl, yl, xl + 16, yl + 16);
 			yl += 25;
 		}
@@ -743,8 +922,52 @@ BOOL onWmPaint_DlgProc(const HWND& hDlg
 		xvl += 35;
 	}
 
+	std::wstring wstr = L" ";
+	SelectObject(hdc, hFont);
+	RECT rect;
+	rect.left = 45;
+	rect.top = 12 + 2;
+	rect.right = rect.left + 16;
+	rect.bottom = rect.top + 16;
+	for (int i = 0; i < 12; i++)
+	{
+		rect.top = 12 + 2;
+		rect.bottom = rect.top + 16;
+		for (int j = 0; j < CSTRINGG; j++)
+		{
+			wstr[0] = wchOctave[++aIdxNoteOnStringg[j] % 12];
+			DrawText(hdc, (LPCWSTR)wstr.c_str(), 1, &rect, DT_CENTER);
+			rect.top += 23 + 2;
+			rect.bottom = rect.top + 16;
+		}
+		rect.left += 35;
+		rect.right = rect.left + 16;
+	}
+
 	//Ellipse(hdc, 45, 12, 61, 28);
 	//Ellipse(hdc, 45, 37, 61, 53);
+
+	//SelectObject(hdc, hFont);
+	//RECT rect;
+	//rect.left = 45;
+	//rect.top = 12 + 2;
+	//rect.right = rect.left + 16;
+	//rect.bottom = rect.top + 16;
+	//std::wstring wstr = L" ";
+	//for (int i = 0; i < 13; i++)
+	//{
+	//	wstr[0] = wch[++n[0] % 12];
+	//	DrawText(hdc, (LPCWSTR)wstr.c_str(), 1, &rect, DT_CENTER);
+	//	rect.left += 35;
+	//	rect.right = rect.left + 16;
+	//}
+	//for (int j = 0; j < CSTRINGG; j++)
+	//{
+	//	wstr[0] = wch[++n[j] % 12];
+	//	DrawText(hdc, (LPCWSTR)wstr.c_str(), 1, &rect, DT_CENTER);
+	//	rect.top += 23 + 2;
+	//	rect.bottom = rect.top + 16;
+	//}
 
 	EndPaint(hDlg, &ps);
 
@@ -785,7 +1008,7 @@ INT_PTR onWmCommand_DlgProc(const HWND& hDlg
 
 	return (INT_PTR)FALSE;
 }
-
+*/
 // waste //////////////////////////////////////////////////////////////////////
 /*
 //*****************************************************************************

@@ -282,6 +282,22 @@ INT_PTR CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         // through into the underlying message handler!
         break;
     } // eof WM_COMMAND
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    {
+        OutputDebugString(L" WM_LBUTTONDOWN | WM_RBUTTONDOWN\n");
+        return (INT_PTR)TRUE;
+    } // eof WM_NCLBUTTONDOWN | WM_RBUTTONDOWN
+    case WM_MOUSEHOVER:
+    {
+        OutputDebugString(L"WM_MOUSEHOVER\n");
+        return (INT_PTR)TRUE;
+    } // eof WM_MOUSEHOVER
+    case WM_MOUSELEAVE:
+    {
+        OutputDebugString(L"WM_MOUSELEAVE\n");
+        return (INT_PTR)TRUE;
+    } // eof WM_MOUSELEAVE
     } // eof switch
 
     return (INT_PTR)FALSE;

@@ -10,7 +10,8 @@
 
 // test
 //#define MAX_RINGBUFFER				10
-#define CSTRINGG					6
+#define NOF_STRING_GUITAR			6
+#define NOF_NOTE_OCTAVE				12
 
 #define IDC_PLUCK					30000
 #define IDC_STRUM					30001
